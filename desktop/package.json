@@ -1,0 +1,64 @@
+{
+  "name": "bams-ai-desktop",
+  "version": "1.0.0",
+  "description": "BAMS AI — MEP Construction Management Desktop App",
+  "main": "dist/main.js",
+  "homepage": "./",
+  "author": "BAMS AI",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"tsc -w\" \"electron .\"",
+    "build": "tsc && electron-builder",
+    "build:mac": "tsc && electron-builder --mac",
+    "build:win": "tsc && electron-builder --win",
+    "build:linux": "tsc && electron-builder --linux"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "concurrently": "^8.0.0",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.1.0"
+  },
+  "build": {
+    "appId": "com.bamsai.desktop",
+    "productName": "BAMS AI",
+    "directories": {
+      "output": "../dist-desktop"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "assets/icon.icns",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": ["AppImage", "deb"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
