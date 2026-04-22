@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from pydantic import BaseModel
 
 from core.database import get_db
@@ -13,14 +13,19 @@ router = APIRouter()
 
 
 class TakeoffItemCreate(BaseModel):
-    project_id: int
-    category: str
     description: str
+    category: str
     csi_code: str | None = None
     system: str | None = None
     quantity: float
     unit: str
     waste_factor: float = 0.05
+    unit_material_cost: float | None = None
+    unit_labor_hours: float | None = None
+    # Aliases accepted from frontend / AI pipeline
+    material_unit_cost: float | None = None
+    labor_hours_per_unit: float | None = None
+    confidence: float = 1.0
     notes: str | None = None
 
 
@@ -36,46 +41,56 @@ class TakeoffItemUpdate(BaseModel):
 async def list_takeoff(
     project_id: int,
     category: str | None = None,
-    system: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     q = select(TakeoffItem).where(TakeoffItem.project_id == project_id)
     if category:
         q = q.where(TakeoffItem.category == category)
-    if system:
-        q = q.where(TakeoffItem.system == system)
     q = q.order_by(TakeoffItem.category, TakeoffItem.description)
     result = await db.execute(q)
     items = result.scalars().all()
 
-    # Aggregate summary by category
-    summary = {}
+    summary: dict = {}
     for item in items:
         cat = item.category
         if cat not in summary:
-            summary[cat] = {"count": 0, "material_total": 0.0, "labor_total": 0.0}
+            summary[cat] = {"count": 0, "material_total": 0.0, "labor_hours": 0.0}
         summary[cat]["count"] += 1
         summary[cat]["material_total"] += item.material_total or 0.0
-        summary[cat]["labor_total"] += item.labor_total or 0.0
+        summary[cat]["labor_hours"] += item.labor_total or 0.0
 
-    return {
-        "items": [_item_out(i) for i in items],
-        "summary": summary,
-        "total": len(items),
-    }
+    return {"items": [_item_out(i) for i in items], "summary": summary, "total": len(items)}
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/project/{project_id}", status_code=status.HTTP_201_CREATED)
 async def create_takeoff_item(
+    project_id: int,
     data: TakeoffItemCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Resolve aliased field names
+    mat_cost = data.unit_material_cost or data.material_unit_cost
+    labor_hrs = data.unit_labor_hours or data.labor_hours_per_unit
     adj_qty = data.quantity * (1 + data.waste_factor)
+
     item = TakeoffItem(
+        project_id=project_id,
+        description=data.description,
+        category=data.category,
+        csi_code=data.csi_code,
+        system=data.system,
+        quantity=data.quantity,
+        unit=data.unit,
+        waste_factor=data.waste_factor,
         adjusted_quantity=adj_qty,
-        **data.model_dump(exclude_none=True),
+        unit_material_cost=mat_cost,
+        unit_labor_hours=labor_hrs,
+        material_total=(mat_cost or 0) * adj_qty,
+        labor_total=(labor_hrs or 0) * adj_qty,
+        confidence=data.confidence,
+        notes=data.notes,
     )
     db.add(item)
     await db.flush()
@@ -98,10 +113,9 @@ async def update_takeoff_item(
         setattr(item, field, value)
 
     if data.quantity is not None:
-        item.adjusted_quantity = data.quantity * (1 + item.waste_factor)
-        item.is_locked = True  # manual edit locks the item
+        item.adjusted_quantity = data.quantity * (1 + (item.waste_factor or 0.05))
+        item.is_locked = True
 
-    # Recompute totals
     if item.unit_material_cost and item.adjusted_quantity:
         item.material_total = item.unit_material_cost * item.adjusted_quantity
     if item.unit_labor_hours and item.adjusted_quantity:
@@ -129,9 +143,12 @@ async def regenerate_takeoff(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from workers.run_takeoff import run_takeoff_task
-    task = run_takeoff_task.delay(project_id)
-    return {"task_id": task.id, "status": "processing"}
+    try:
+        from workers.run_takeoff import run_takeoff_task
+        task = run_takeoff_task.delay(project_id)
+        return {"task_id": task.id, "status": "processing"}
+    except Exception as exc:
+        return {"task_id": None, "status": "error", "detail": str(exc)}
 
 
 def _item_out(i: TakeoffItem) -> dict:
@@ -153,5 +170,5 @@ def _item_out(i: TakeoffItem) -> dict:
         "confidence": i.confidence,
         "is_locked": i.is_locked,
         "notes": i.notes,
-        "updated_at": i.updated_at.isoformat(),
+        "updated_at": i.updated_at.isoformat() if i.updated_at else None,
     }

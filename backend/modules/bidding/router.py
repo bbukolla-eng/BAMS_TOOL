@@ -139,13 +139,29 @@ async def add_line_item(
     return line.__dict__
 
 
+class BidCalculateParams(BaseModel):
+    overhead_config_id: int | None = None
+    labor_rate: float | None = None
+
+
 @router.post("/{bid_id}/calculate")
 async def calculate_bid(
     bid_id: int,
+    params: BidCalculateParams | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     bid = await _get_bid_or_404(bid_id, db)
+    if params:
+        if params.overhead_config_id is not None:
+            bid.overhead_config_id = params.overhead_config_id
+        if params.labor_rate is not None:
+            # Recompute labor_total on all line items with new rate
+            lines_result = await db.execute(select(BidLineItem).where(BidLineItem.bid_id == bid_id))
+            for line in lines_result.scalars().all():
+                line.labor_rate = params.labor_rate
+                line.labor_total = line.unit_labor_hours * params.labor_rate * line.quantity
+                line.line_total = line.material_total + line.labor_total
     await _recalculate_bid(bid, db)
     return _bid_out(bid)
 
@@ -173,7 +189,7 @@ async def _recalculate_bid(bid: Bid, db: AsyncSession) -> None:
     lines = lines_result.scalars().all()
 
     bid.total_material_cost = sum(l.material_total for l in lines)
-    bid.total_labor_hours = sum(l.unit_labor_hours * l.quantity for l in lines)
+    bid.total_labor_hours = sum(l.unit_labor_hours * l.quantity for l in lines if l.unit_labor_hours)
     bid.total_labor_cost = sum(l.labor_total for l in lines)
 
     config = None
@@ -194,6 +210,9 @@ async def _recalculate_bid(bid: Bid, db: AsyncSession) -> None:
     else:
         bid.subtotal = bid.total_material_cost + bid.total_labor_cost
         bid.grand_total = bid.subtotal
+
+    await db.flush()
+    await db.refresh(bid)
 
 
 async def _get_bid_or_404(bid_id: int, db: AsyncSession) -> Bid:
