@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import date
 
 from core.database import get_db
@@ -89,3 +89,60 @@ async def export_proposal_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=proposal_{proposal_id}.pdf"},
     )
+
+
+class ProposalSendRequest(BaseModel):
+    to_email: EmailStr
+    cc_email: EmailStr | None = None
+    custom_message: str | None = None
+
+
+@router.post("/{proposal_id}/send")
+async def send_proposal(
+    proposal_id: int,
+    data: ProposalSendRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Email the proposal PDF to the client."""
+    from modules.proposals.generator import generate_proposal_pdf
+    from core.email import send_email, proposal_html
+
+    result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        raise NotFoundError("Proposal")
+
+    pdf_bytes = await generate_proposal_pdf(proposal, db)
+    filename = f"proposal_{proposal.proposal_number or proposal_id}.pdf"
+
+    recipients = [data.to_email]
+    if data.cc_email:
+        recipients.append(data.cc_email)
+
+    subject = f"Proposal: {proposal.title}"
+    if proposal.proposal_number:
+        subject = f"[{proposal.proposal_number}] {proposal.title}"
+
+    html_body = proposal_html(proposal)
+    if data.custom_message:
+        html_body = html_body.replace(
+            "Please find attached",
+            f"{data.custom_message}<br><br>Please find attached",
+        )
+
+    sent = await send_email(
+        to=recipients,
+        subject=subject,
+        body_html=html_body,
+        attachments=[(pdf_bytes, filename, "application/pdf")],
+    )
+
+    if not sent:
+        raise HTTPException(
+            status_code=503,
+            detail="SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD in your .env file.",
+        )
+
+    proposal.status = ProposalStatus.sent
+    return {"sent": True, "to": recipients, "filename": filename}

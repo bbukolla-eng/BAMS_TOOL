@@ -1,4 +1,4 @@
-.PHONY: setup dev stop seed migrate test lint format
+.PHONY: setup dev stop seed migrate test lint format first-run
 
 setup:
 	@echo "Setting up BAMS AI..."
@@ -6,10 +6,16 @@ setup:
 	cd backend && pip install -e ".[dev]"
 	cd frontend && npm install
 	docker compose up -d postgres redis minio
-	@sleep 3
+	@sleep 5
 	cd backend && alembic upgrade head
 	python scripts/create_minio_bucket.py
 	@echo "Setup complete. Run 'make seed' to load Division 23 data."
+
+first-run: setup seed
+	@echo ""
+	@echo "BAMS AI is ready."
+	@echo "Run 'make dev' to start all services."
+	@echo "Login: admin@bams.local / Admin1234!"
 
 dev:
 	docker compose up --build
@@ -24,7 +30,7 @@ stop:
 	docker compose down
 
 seed:
-	cd backend && python ../scripts/seed_price_book.py
+	cd backend && python ../scripts/seed_users.py
 	cd backend && python ../scripts/seed_div23_data.py
 
 migrate:

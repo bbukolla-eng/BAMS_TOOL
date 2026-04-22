@@ -15,10 +15,10 @@ BUCKETS = ["bams-drawings", "bams-specs", "bams-exports", "bams-ml-models"]
 
 def main():
     client = Minio(
-        settings.minio_endpoint,
-        access_key=settings.minio_access_key,
-        secret_key=settings.minio_secret_key,
-        secure=settings.minio_secure,
+        settings.storage_endpoint,
+        access_key=settings.storage_access_key,
+        secret_key=settings.storage_secret_key,
+        secure=settings.storage_use_ssl,
     )
     for bucket in BUCKETS:
         try:

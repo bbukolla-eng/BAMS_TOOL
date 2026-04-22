@@ -27,8 +27,7 @@ async def _check_and_retrain_async():
     from sqlalchemy import select, func
 
     async with AsyncSessionLocal() as db:
-        # Count unprocessed feedback events by model type
-        for model_type in ["yolo_mechanical", "yolo_electrical", "yolo_plumbing"]:
+        for model_type in ["mechanical", "electrical", "plumbing"]:
             count_result = await db.execute(
                 select(func.count(FeedbackEvent.id)).where(
                     FeedbackEvent.event_type == "symbol_correction",
@@ -37,24 +36,80 @@ async def _check_and_retrain_async():
                 )
             )
             count = count_result.scalar() or 0
-
-            log.info(f"Model {model_type}: {count} new feedback events")
+            log.info(f"Model {model_type}: {count} new feedback events (need {MIN_FEEDBACK_FOR_TRAINING})")
 
             if count >= MIN_FEEDBACK_FOR_TRAINING:
-                log.info(f"Triggering retraining for {model_type} with {count} examples")
                 job = MLTrainingJob(
-                    model_type=model_type,
-                    status="pending",
+                    model_type=f"yolo_{model_type}",
+                    status="running",
                     triggered_by="scheduled",
                     feedback_count=count,
                 )
                 db.add(job)
                 await db.flush()
-                # In production: dispatch to a dedicated GPU training worker
-                # For now just log the intent
-                log.info(f"Training job {job.id} created for {model_type}")
+                job_id = job.id
+                await db.commit()
+
+                log.info(f"Starting retraining job {job_id} for {model_type}")
+                success = await _run_training(model_type, job_id)
+
+                # Mark feedback events as used
+                async with AsyncSessionLocal() as db2:
+                    result2 = await db2.execute(
+                        select(FeedbackEvent).where(
+                            FeedbackEvent.event_type == "symbol_correction",
+                            FeedbackEvent.is_training_candidate == True,
+                            FeedbackEvent.used_in_training_job_id == None,
+                        )
+                    )
+                    for ev in result2.scalars().all():
+                        ev.used_in_training_job_id = job_id
+
+                    result3 = await db2.execute(
+                        select(MLTrainingJob).where(MLTrainingJob.id == job_id)
+                    )
+                    finished_job = result3.scalar_one_or_none()
+                    if finished_job:
+                        finished_job.status = "completed" if success else "failed"
+                    await db2.commit()
+                return
 
         await db.commit()
+
+
+async def _run_training(model_type: str, job_id: int) -> bool:
+    """Invoke the YOLO training script in a subprocess to avoid event loop conflicts."""
+    import asyncio
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    script = Path(__file__).parent.parent.parent / "ml" / "training" / "train_yolo.py"
+    if not script.exists():
+        log.error("Training script not found: %s", script)
+        return False
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, str(script),
+            "--model-type", model_type,
+            "--epochs", "50",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=7200)
+        if proc.returncode == 0:
+            log.info("Training succeeded for %s", model_type)
+            return True
+        else:
+            log.error("Training failed for %s: %s", model_type, stderr.decode()[-2000:])
+            return False
+    except asyncio.TimeoutError:
+        log.error("Training timed out for %s", model_type)
+        return False
+    except Exception as e:
+        log.error("Training error for %s: %s", model_type, e)
+        return False
 
 
 async def _accuracy_report_async():
