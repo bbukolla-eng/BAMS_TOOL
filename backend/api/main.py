@@ -80,8 +80,66 @@ async def serve_local_file(object_key: str):
     import os
     from fastapi.responses import FileResponse
     from fastapi import HTTPException
-    root = os.getenv("LOCAL_STORAGE_PATH", "./storage")
+    root = os.getenv("LOCAL_STORAGE_PATH", settings.local_storage_path)
     file_path = os.path.join(root, object_key)
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path)
+
+
+# ── SSE progress stream ───────────────────────────────────────────────────────
+
+@app.get(f"{settings.api_prefix}/jobs/{{job_key}}/progress")
+async def job_progress_stream(job_key: str):
+    """
+    Server-Sent Events endpoint for real-time job progress.
+    job_key examples: "drawing:42", "spec:7"
+    Connect with: EventSource('/api/v1/jobs/drawing:42/progress')
+    """
+    import asyncio
+    import json
+    from fastapi.responses import StreamingResponse
+
+    async def event_generator():
+        try:
+            import redis.asyncio as aioredis
+            from core.config import settings as cfg
+            r = aioredis.from_url(cfg.redis_url, decode_responses=True)
+            pubsub = r.pubsub()
+            channel = f"job:{job_key}"
+            await pubsub.subscribe(channel)
+            try:
+                # Send initial status if cached
+                try:
+                    from core.redis_client import get_job_status
+                    cached = await get_job_status(job_key)
+                    if cached:
+                        yield f"data: {json.dumps(cached)}\n\n"
+                except Exception:
+                    pass
+
+                # Stream live updates for up to 10 minutes
+                deadline = asyncio.get_event_loop().time() + 600
+                while asyncio.get_event_loop().time() < deadline:
+                    msg = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=30)
+                    if msg and msg["type"] == "message":
+                        yield f"data: {msg['data']}\n\n"
+                        data = json.loads(msg["data"])
+                        if data.get("stage") in ("done", "error"):
+                            break
+                    else:
+                        yield ": keepalive\n\n"
+            finally:
+                await pubsub.unsubscribe(channel)
+                await r.aclose()
+        except Exception as exc:
+            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

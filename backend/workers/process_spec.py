@@ -37,7 +37,7 @@ async def _process_spec_async(spec_id: int, file_path: str):
     division = await classify_spec_division(filename, first_text)
 
     # Extract sections
-    sections = extract_spec_sections(io.BytesIO(file_bytes))
+    sections = extract_spec_sections(file_bytes)
     log.info(f"Spec {spec_id}: found {len(sections)} sections")
 
     async with AsyncSessionLocal() as db:
