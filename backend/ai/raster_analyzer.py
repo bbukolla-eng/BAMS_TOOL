@@ -120,8 +120,8 @@ def _detect_symbol_candidates(
 
 def _detect_text_regions(gray: np.ndarray) -> list[dict]:
     """
-    Detect dense text blobs (title block, schedules) using morphological dilation.
-    Returns approximate bounding boxes; OCR is handled downstream.
+    Detect dense text blobs (title block, schedules) using morphological dilation,
+    then run easyocr on each region to extract the actual text.
     """
     _, bw = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (20, 5))
@@ -131,5 +131,21 @@ def _detect_text_regions(gray: np.ndarray) -> list[dict]:
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         if w > 50 and h > 8:
-            regions.append({"bbox_px": [x, y, w, h], "text": None})
+            regions.append({"bbox_px": [x, y, w, h], "text": None, "_crop": gray[y:y + h, x:x + w]})
+
+    if not regions:
+        return regions
+
+    # Run easyocr on all crops in one reader session
+    try:
+        import easyocr
+        reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+        for region in regions:
+            crop = region.pop("_crop")
+            results = reader.readtext(crop, detail=0, paragraph=True)
+            region["text"] = " ".join(results).strip() if results else None
+    except Exception:
+        for region in regions:
+            region.pop("_crop", None)
+
     return regions

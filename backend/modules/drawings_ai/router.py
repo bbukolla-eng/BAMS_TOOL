@@ -42,11 +42,23 @@ async def reprocess_drawing(
     if not drawing:
         raise NotFoundError("Drawing")
 
-    from workers.process_drawing import process_drawing_task
-    task = process_drawing_task.delay(drawing.id, drawing.file_path, drawing.file_type)
-    drawing.celery_task_id = task.id
     drawing.processing_status = "processing"
-    return {"task_id": task.id, "status": "processing"}
+    try:
+        from workers.process_drawing import process_drawing_task
+        task = process_drawing_task.delay(drawing.id, drawing.file_path, drawing.file_type)
+        drawing.celery_task_id = task.id
+        return {"task_id": task.id, "status": "processing"}
+    except Exception:
+        import asyncio
+        from workers.process_drawing import _process_drawing_async
+        _did, _fp, _ft = drawing.id, drawing.file_path, drawing.file_type
+        async def _run():
+            try:
+                await _process_drawing_async(None, _did, _fp, _ft)
+            except Exception:
+                pass
+        asyncio.create_task(_run())
+        return {"task_id": None, "status": "processing"}
 
 
 @router.post("/correct-symbol")

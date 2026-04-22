@@ -1,8 +1,37 @@
 import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import api from '@/api/client'
-import { Upload, FileText, ChevronDown, ChevronRight } from 'lucide-react'
+import { useJobProgress } from '@/hooks/useJobProgress'
+import { Upload, FileText, ChevronDown, ChevronRight, Loader, CheckCircle } from 'lucide-react'
+
+function SpecStatusBadge({ spec, projectId }: { spec: any; projectId: string }) {
+  const qc = useQueryClient()
+  const isProcessing = spec.processing_status === 'processing' || spec.processing_status === 'pending'
+  const jobKey = isProcessing ? `spec:${spec.id}` : null
+  const progress = useJobProgress(jobKey)
+
+  useEffect(() => {
+    if (progress?.stage === 'done' || progress?.stage === 'error') {
+      qc.invalidateQueries({ queryKey: ['specs', projectId] })
+      qc.invalidateQueries({ queryKey: ['spec-sections', spec.id] })
+    }
+  }, [progress?.stage, qc, projectId, spec.id])
+
+  if (spec.processing_status === 'done') {
+    return <CheckCircle size={12} className="text-green-500 inline mr-1" />
+  }
+  if (isProcessing) {
+    return (
+      <span className="flex items-center gap-1 text-xs text-yellow-600">
+        <Loader size={10} className="animate-spin" />
+        {progress?.message || 'processing'}
+        {progress?.pct != null && ` ${progress.pct}%`}
+      </span>
+    )
+  }
+  return <span className="text-xs text-gray-400">{spec.processing_status}</span>
+}
 
 export default function SpecsPage() {
   const { id: projectId } = useParams<{ id: string }>()
@@ -15,6 +44,10 @@ export default function SpecsPage() {
   const { data: specs } = useQuery({
     queryKey: ['specs', projectId],
     queryFn: () => api.get(`/specs/project/${projectId}`).then((r) => r.data.items),
+    refetchInterval: (query) => {
+      const items: any[] = query.state.data || []
+      return items.some((s) => s.processing_status === 'processing' || s.processing_status === 'pending') ? 15000 : false
+    },
   })
 
   const { data: sections } = useQuery({
@@ -33,7 +66,10 @@ export default function SpecsPage() {
       const res = await api.post(`/specs/project/${projectId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
       qc.invalidateQueries({ queryKey: ['specs', projectId] })
       setSelectedSpec(res.data.id)
-    } finally { setUploading(false) }
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
   }
 
   return (
@@ -59,9 +95,9 @@ export default function SpecsPage() {
                 <span className="text-sm font-medium text-gray-900 truncate">{spec.name}</span>
               </div>
               {spec.division && <span className="text-xs text-gray-500">Div. {spec.division}</span>}
-              <span className={`ml-2 text-xs ${spec.processing_status === 'done' ? 'text-green-600' : 'text-yellow-600'}`}>
-                {spec.processing_status}
-              </span>
+              <div className="mt-1">
+                <SpecStatusBadge spec={spec} projectId={projectId!} />
+              </div>
             </button>
           ))}
           {!specs?.length && <p className="text-sm text-gray-500">Upload spec PDFs to get started</p>}

@@ -26,7 +26,22 @@ async def _run_takeoff_async(project_id: int):
     from sqlalchemy import select, delete
 
     async with AsyncSessionLocal() as db:
-        # Delete non-locked takeoff items for this project
+        # Nullify bid_line_items references before deleting unlocked takeoff rows
+        from sqlalchemy import update
+        from models.bid import BidLineItem
+        unlocked_ids_result = await db.execute(
+            select(TakeoffItem.id).where(
+                TakeoffItem.project_id == project_id,
+                TakeoffItem.is_locked == False,
+            )
+        )
+        unlocked_ids = [row[0] for row in unlocked_ids_result.fetchall()]
+        if unlocked_ids:
+            await db.execute(
+                update(BidLineItem)
+                .where(BidLineItem.takeoff_item_id.in_(unlocked_ids))
+                .values(takeoff_item_id=None)
+            )
         await db.execute(
             delete(TakeoffItem).where(
                 TakeoffItem.project_id == project_id,

@@ -1,14 +1,67 @@
 import { useParams, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState, useRef, useEffect } from 'react'
 import api from '@/api/client'
-import { Upload, FileImage, Clock, CheckCircle, AlertCircle, Eye } from 'lucide-react'
+import { useJobProgress } from '@/hooks/useJobProgress'
+import { Upload, FileImage, Clock, CheckCircle, AlertCircle, Eye, Loader } from 'lucide-react'
 
-const STATUS_ICON: Record<string, React.ReactNode> = {
-  done: <CheckCircle size={14} className="text-green-500" />,
-  processing: <Clock size={14} className="text-yellow-500 animate-spin" />,
-  error: <AlertCircle size={14} className="text-red-500" />,
-  pending: <Clock size={14} className="text-gray-400" />,
+function DrawingCard({ d, projectId }: { d: any; projectId: string }) {
+  const qc = useQueryClient()
+  const isProcessing = d.processing_status === 'processing' || d.processing_status === 'pending'
+  const jobKey = isProcessing ? `drawing:${d.id}` : null
+  const progress = useJobProgress(jobKey)
+
+  // Refresh list when SSE signals completion
+  useEffect(() => {
+    if (progress?.stage === 'done' || progress?.stage === 'error') {
+      qc.invalidateQueries({ queryKey: ['drawings', projectId] })
+    }
+  }, [progress?.stage, qc, projectId])
+
+  const statusIcon = () => {
+    if (d.processing_status === 'done') return <CheckCircle size={14} className="text-green-500" />
+    if (d.processing_status === 'error') return <AlertCircle size={14} className="text-red-500" />
+    if (isProcessing) return <Loader size={14} className="text-yellow-500 animate-spin" />
+    return <Clock size={14} className="text-gray-400" />
+  }
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {statusIcon()}
+          <span className="text-xs text-gray-500 capitalize">{d.discipline}</span>
+        </div>
+        <span className="text-xs text-gray-400 uppercase font-mono">{d.file_type}</span>
+      </div>
+      <h3 className="font-medium text-gray-900 text-sm mt-1">{d.name}</h3>
+      <p className="text-xs text-gray-500 mt-0.5">{d.original_filename}</p>
+      {d.file_size_bytes && (
+        <p className="text-xs text-gray-400 mt-1">
+          {(d.file_size_bytes / 1024 / 1024).toFixed(1)} MB · {d.page_count} page{d.page_count !== 1 ? 's' : ''}
+        </p>
+      )}
+      {isProcessing && progress && (
+        <div className="mt-2">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${progress.pct ?? 0}%` }}
+            />
+          </div>
+          {progress.message && <p className="text-xs text-gray-500 mt-1">{progress.message}</p>}
+        </div>
+      )}
+      {d.processing_status === 'error' && d.processing_error && (
+        <p className="text-xs text-red-500 mt-1 truncate">{d.processing_error}</p>
+      )}
+      <div className="mt-3 flex gap-2">
+        <Link to={`${d.id}`} className="btn-secondary text-xs flex items-center gap-1 flex-1 justify-center">
+          <Eye size={12} /> View
+        </Link>
+      </div>
+    </div>
+  )
 }
 
 export default function DrawingsPage() {
@@ -21,7 +74,11 @@ export default function DrawingsPage() {
   const { data } = useQuery({
     queryKey: ['drawings', projectId],
     queryFn: () => api.get(`/drawings/project/${projectId}`).then((r) => r.data.items),
-    refetchInterval: 5000,
+    // Only poll if any drawing is still processing; SSE handles live updates
+    refetchInterval: (query) => {
+      const items: any[] = query.state.data || []
+      return items.some((d) => d.processing_status === 'processing' || d.processing_status === 'pending') ? 10000 : false
+    },
   })
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,6 +93,7 @@ export default function DrawingsPage() {
       qc.invalidateQueries({ queryKey: ['drawings', projectId] })
     } finally {
       setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
@@ -68,26 +126,7 @@ export default function DrawingsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {drawings.map((d: any) => (
-            <div key={d.id} className="card p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {STATUS_ICON[d.processing_status]}
-                  <span className="text-xs text-gray-500 capitalize">{d.discipline}</span>
-                </div>
-                <span className="text-xs text-gray-400 uppercase font-mono">{d.file_type}</span>
-              </div>
-              <h3 className="font-medium text-gray-900 text-sm mt-1">{d.name}</h3>
-              <p className="text-xs text-gray-500 mt-0.5">{d.original_filename}</p>
-              {d.file_size_bytes && <p className="text-xs text-gray-400 mt-1">{(d.file_size_bytes / 1024 / 1024).toFixed(1)} MB · {d.page_count} page{d.page_count !== 1 ? 's' : ''}</p>}
-              {d.processing_status === 'error' && d.processing_error && (
-                <p className="text-xs text-red-500 mt-1 truncate">{d.processing_error}</p>
-              )}
-              <div className="mt-3 flex gap-2">
-                <Link to={`${d.id}`} className="btn-secondary text-xs flex items-center gap-1 flex-1 justify-center">
-                  <Eye size={12} /> View
-                </Link>
-              </div>
-            </div>
+            <DrawingCard key={d.id} d={d} projectId={projectId!} />
           ))}
         </div>
       )}

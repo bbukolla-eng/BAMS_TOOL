@@ -90,7 +90,7 @@ async def serve_local_file(object_key: str):
 # ── SSE progress stream ───────────────────────────────────────────────────────
 
 @app.get(f"{settings.api_prefix}/jobs/{{job_key}}/progress")
-async def job_progress_stream(job_key: str):
+async def job_progress_stream(job_key: str, token: str | None = None):
     """
     Server-Sent Events endpoint for real-time job progress.
     job_key examples: "drawing:42", "spec:7"
