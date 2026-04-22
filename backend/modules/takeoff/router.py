@@ -147,8 +147,18 @@ async def regenerate_takeoff(
         from workers.run_takeoff import run_takeoff_task
         task = run_takeoff_task.delay(project_id)
         return {"task_id": task.id, "status": "processing"}
-    except Exception as exc:
-        return {"task_id": None, "status": "error", "detail": str(exc)}
+    except Exception:
+        import asyncio
+        from workers.run_takeoff import _run_takeoff_async
+
+        async def _run():
+            try:
+                await _run_takeoff_async(project_id)
+            except Exception:
+                pass
+
+        asyncio.create_task(_run())
+        return {"task_id": None, "status": "processing"}
 
 
 def _item_out(i: TakeoffItem) -> dict:

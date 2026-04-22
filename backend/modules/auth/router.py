@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.deps import get_current_user
 from core.security import create_access_token, create_refresh_token, decode_token, verify_password
 from core.exceptions import UnauthorizedError
 from sqlalchemy import select
@@ -73,7 +74,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 @router.get("/me")
 async def get_me(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(__import__("core.deps", fromlist=["get_current_user"]).get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     return {
         "id": current_user.id,
