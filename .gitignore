@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+dist/
+build/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Alembic
+alembic/versions/*.pyc
+
+# ML models (large binary files)
+backend/ml_models/**/*.pt
+backend/ml_models/**/*.onnx
+ml/training/label_studio_export/
+ml/training/datasets/
+ml/evaluation/benchmark_drawings/
+*.pt
+*.onnx
+*.pkl
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Desktop
+desktop/node_modules/
+desktop/dist/
+desktop/out/
+
+# Storage & uploads
+uploads/
+storage/
+*.pdf
+*.dwg
+*.dxf
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
