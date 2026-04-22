@@ -14,7 +14,7 @@ class UserRole(str, Enum):
 
 
 class PlanTier(str, Enum):
-    free = "free"
+    starter = "starter"
     pro = "pro"
     enterprise = "enterprise"
 
@@ -24,9 +24,11 @@ class Organization(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    plan_tier: Mapped[str] = mapped_column(String(50), default=PlanTier.free)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    plan: Mapped[str] = mapped_column(String(20), default=PlanTier.starter)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     users: Mapped[list["User"]] = relationship("User", back_populates="organization")
     projects: Mapped[list["Project"]] = relationship("Project", back_populates="organization")  # type: ignore[name-defined]
@@ -38,13 +40,13 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(50), default=UserRole.estimator)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default=UserRole.viewer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
     )
 
     organization: Mapped[Organization] = relationship("Organization", back_populates="users")

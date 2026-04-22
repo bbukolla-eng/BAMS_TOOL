@@ -33,7 +33,7 @@ class RefreshRequest(BaseModel):
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == form_data.username, User.is_active == True))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise UnauthorizedError()
     return TokenResponse(
         access_token=create_access_token(user.id),
@@ -48,7 +48,9 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    org = Organization(name=data.org_name)
+    import re, uuid
+    slug = re.sub(r'[^a-z0-9]+', '-', data.org_name.lower()).strip('-') + '-' + uuid.uuid4().hex[:6]
+    org = Organization(name=data.org_name, slug=slug)
     db.add(org)
     await db.flush()
 
@@ -56,7 +58,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         org_id=org.id,
         email=data.email,
         full_name=data.full_name,
-        password_hash=hash_password(data.password),
+        hashed_password=hash_password(data.password),
         role="admin",
     )
     db.add(user)

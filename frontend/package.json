@@ -31,7 +31,6 @@
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-tooltip": "^1.0.7",
-    "@radix-ui/react-badge": "^1.0.0",
     "ol": "^9.2.4",
     "fabric": "^6.3.0"
   },

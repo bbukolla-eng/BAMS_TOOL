@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/api/client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BarChart3, Download } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
@@ -11,13 +11,16 @@ export default function BidSummaryPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const [selectedBid, setSelectedBid] = useState<number | null>(null)
 
-  const { data: bids } = useQuery({
+  const { data: bids } = useQuery<any[]>({
     queryKey: ['bids', projectId],
     queryFn: () => api.get(`/bids/project/${projectId}`).then(r => r.data.items),
-    onSuccess: (data: any) => { if (data?.length && !selectedBid) setSelectedBid(data[0].id) },
   })
 
-  const { data: bid } = useQuery({
+  useEffect(() => {
+    if (bids?.length && !selectedBid) setSelectedBid(bids[0].id)
+  }, [bids])
+
+  const { data: bid } = useQuery<any>({
     queryKey: ['bid', selectedBid],
     queryFn: () => api.get(`/bids/${selectedBid}`).then(r => r.data),
     enabled: !!selectedBid,
@@ -27,7 +30,7 @@ export default function BidSummaryPage() {
 
   // Build chart data from line items grouped by category
   const categoryTotals: Record<string, number> = {}
-  for (const li of bid?.line_items || []) {
+  for (const li of (bid?.line_items || []) as any[]) {
     const cat = li.category || 'other'
     categoryTotals[cat] = (categoryTotals[cat] || 0) + (li.line_total || 0)
   }
