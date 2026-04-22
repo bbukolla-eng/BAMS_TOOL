@@ -149,10 +149,27 @@ def _convert_dwg_to_dxf(dwg_bytes: bytes) -> bytes:
     raise RuntimeError("ODA converter produced no output")
 
 
+_STAGE_MESSAGES = {
+    "downloading": "Downloading file",
+    "converting_dwg": "Converting DWG to DXF",
+    "extracting_geometry": "Extracting geometry",
+    "saving_results": "Saving results",
+    "done": "Complete",
+    "error": "Processing failed",
+}
+
+
 async def _publish_progress(drawing_id: int, stage: str, percent: int):
     try:
-        from core.redis_client import publish_job_progress
-        await publish_job_progress(f"drawing:{drawing_id}", {"stage": stage, "percent": percent})
+        from core.redis_client import publish_job_progress, set_job_status
+        data = {
+            "stage": stage,
+            "pct": percent,
+            "message": _STAGE_MESSAGES.get(stage, stage.replace("_", " ")),
+        }
+        await publish_job_progress(f"drawing:{drawing_id}", data)
+        if stage in ("done", "error"):
+            await set_job_status(f"drawing:{drawing_id}", data)
     except Exception:
         pass
 

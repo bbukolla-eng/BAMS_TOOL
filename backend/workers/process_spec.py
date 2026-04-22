@@ -15,6 +15,9 @@ def process_spec_task(self, spec_id: int, file_path: str):
         return {"status": "done", "spec_id": spec_id}
     except Exception as exc:
         log.error(f"Spec {spec_id} processing failed: {exc}")
+        if self.request.retries >= self.max_retries:
+            # Permanent failure — mark spec as error
+            asyncio.run(_update_spec_status(spec_id, "error", str(exc)))
         raise self.retry(exc=exc, countdown=30)
 
 
@@ -25,9 +28,11 @@ async def _process_spec_async(spec_id: int, file_path: str):
     from ai.spec_parser import extract_spec_sections, analyze_section_with_claude, generate_embeddings, classify_spec_division
     from sqlalchemy import select
 
+    await _publish_spec_progress(spec_id, "downloading", 5)
     file_bytes = download_file(file_path)
 
     # Detect division
+    await _publish_spec_progress(spec_id, "classifying", 15)
     import pdfplumber, io
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
         first_text = pdf.pages[0].extract_text() if pdf.pages else ""
@@ -37,6 +42,7 @@ async def _process_spec_async(spec_id: int, file_path: str):
     division = await classify_spec_division(filename, first_text)
 
     # Extract sections
+    await _publish_spec_progress(spec_id, "extracting_sections", 30)
     sections = extract_spec_sections(file_bytes)
     log.info(f"Spec {spec_id}: found {len(sections)} sections")
 
@@ -47,8 +53,12 @@ async def _process_spec_async(spec_id: int, file_path: str):
         if spec:
             spec.division = division
 
-        # Process each section
-        for section_data in sections:
+        total = len(sections)
+        for idx, section_data in enumerate(sections):
+            pct = 30 + int((idx / max(total, 1)) * 55)
+            await _publish_spec_progress(spec_id, "analyzing_sections", pct,
+                                         f"Section {idx + 1}/{total}: {section_data.section_title or ''}")
+
             # Get structured data from Claude
             structured = await analyze_section_with_claude(section_data)
 
@@ -72,4 +82,45 @@ async def _process_spec_async(spec_id: int, file_path: str):
             spec.processing_status = "done"
 
         await db.commit()
+
+    await _publish_spec_progress(spec_id, "done", 100)
     log.info(f"Spec {spec_id} processed successfully")
+
+
+async def _publish_spec_progress(spec_id: int, stage: str, pct: int, message: str | None = None):
+    _stage_messages = {
+        "downloading": "Downloading file",
+        "classifying": "Detecting CSI division",
+        "extracting_sections": "Extracting sections",
+        "analyzing_sections": "Analyzing with AI",
+        "done": "Complete",
+        "error": "Processing failed",
+    }
+    try:
+        from core.redis_client import publish_job_progress, set_job_status
+        data = {
+            "stage": stage,
+            "pct": pct,
+            "message": message or _stage_messages.get(stage, stage.replace("_", " ")),
+        }
+        await publish_job_progress(f"spec:{spec_id}", data)
+        if stage in ("done", "error"):
+            await set_job_status(f"spec:{spec_id}", data)
+    except Exception:
+        pass
+
+
+async def _update_spec_status(spec_id: int, status: str, error: str | None = None):
+    from core.database import AsyncSessionLocal
+    from models.specification import Specification
+    from sqlalchemy import select
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(Specification).where(Specification.id == spec_id))
+            spec = result.scalar_one_or_none()
+            if spec:
+                spec.processing_status = status
+                await db.commit()
+        await _publish_spec_progress(spec_id, "error", 0, error)
+    except Exception:
+        pass

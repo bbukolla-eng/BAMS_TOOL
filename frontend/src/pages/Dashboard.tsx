@@ -11,6 +11,13 @@ export default function Dashboard() {
 
   const activeProjects = projects?.filter((p: any) => p.status === 'active') || []
   const biddingProjects = projects?.filter((p: any) => p.status === 'bidding') || []
+  const now = new Date()
+  const weekOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const dueThisWeek = projects?.filter((p: any) => {
+    if (!p.bid_due_date) return false
+    const d = new Date(p.bid_due_date)
+    return d >= now && d <= weekOut
+  }) || []
 
   return (
     <div className="p-6">
@@ -25,7 +32,7 @@ export default function Dashboard() {
           { label: 'Total Projects', value: projects?.length || 0, icon: FolderOpen, color: 'blue' },
           { label: 'Active', value: activeProjects.length, icon: TrendingUp, color: 'green' },
           { label: 'Bidding', value: biddingProjects.length, icon: Gavel, color: 'yellow' },
-          { label: 'Due This Week', value: 0, icon: Clock, color: 'red' },
+          { label: 'Due This Week', value: dueThisWeek.length, icon: Clock, color: 'red' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-4">
             <div className="flex items-center justify-between">
