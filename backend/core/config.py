@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/2"
 
     # Object Storage
+    storage_backend: str = "minio"  # "local" or "minio"
+    local_storage_path: str = "./storage"
     storage_endpoint: str = "localhost:9000"
     storage_access_key: str = "minioadmin"
     storage_secret_key: str = "minioadmin"

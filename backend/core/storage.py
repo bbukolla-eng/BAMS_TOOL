@@ -17,7 +17,7 @@ _LOCAL_ROOT: Path | None = None
 def _local_root() -> Path:
     global _LOCAL_ROOT
     if _LOCAL_ROOT is None:
-        path = Path(os.getenv("LOCAL_STORAGE_PATH", "./storage"))
+        path = Path(os.getenv("LOCAL_STORAGE_PATH", settings.local_storage_path))
         path.mkdir(parents=True, exist_ok=True)
         _LOCAL_ROOT = path
     return _LOCAL_ROOT
@@ -30,7 +30,7 @@ def _local_path(object_key: str) -> Path:
 
 
 def _use_local() -> bool:
-    return os.getenv("STORAGE_BACKEND", "").lower() == "local"
+    return settings.storage_backend.lower() == "local" or os.getenv("STORAGE_BACKEND", "").lower() == "local"
 
 
 # ── MinIO/S3 backend ───────────────────────────────────────────────────────

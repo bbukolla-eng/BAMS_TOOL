@@ -70,6 +70,20 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     )
 
 
+@router.get("/me")
+async def get_me(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(__import__("core.deps", fromlist=["get_current_user"]).get_current_user),
+):
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "role": current_user.role,
+        "org_id": current_user.org_id,
+    }
+
+
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(data: RefreshRequest):
     payload = decode_token(data.refresh_token)

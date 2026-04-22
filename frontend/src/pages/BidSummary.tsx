@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '@/api/client'
 import { useState, useEffect } from 'react'
 import { BarChart3, Download } from 'lucide-react'
+import { downloadBlob } from '@/utils/download'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const COLORS = ['#1d4ed8', '#0891b2', '#16a34a', '#ca8a04', '#dc2626', '#9333ea']
@@ -45,9 +46,9 @@ export default function BidSummaryPage() {
             {(bids || []).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
           {selectedBid && (
-            <a href={`/api/v1/bids/${selectedBid}/export/excel`} className="btn-secondary flex items-center gap-1 text-sm">
+            <button onClick={() => downloadBlob(`/bids/${selectedBid}/export/excel`, `bid_${selectedBid}.xlsx`)} className="btn-secondary flex items-center gap-1 text-sm">
               <Download size={14} /> Export
-            </a>
+            </button>
           )}
         </div>
       </div>

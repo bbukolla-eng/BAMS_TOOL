@@ -58,12 +58,36 @@ async def upload_spec(
     db.add(spec)
     await db.flush()
 
-    from workers.process_spec import process_spec_task
-    task = process_spec_task.delay(spec.id, object_key)
-    spec.celery_task_id = task.id
-    spec.processing_status = "processing"
+    task_id = None
+    try:
+        from workers.process_spec import process_spec_task
+        task = process_spec_task.delay(spec.id, object_key)
+        task_id = task.id
+        spec.celery_task_id = task_id
+        spec.processing_status = "processing"
+    except Exception:
+        import asyncio
+        spec.processing_status = "processing"
+        await db.commit()
 
-    return {"id": spec.id, "task_id": task.id, "status": "processing"}
+        async def _run_inline():
+            from workers.process_spec import _process_spec_async
+            try:
+                await _process_spec_async(spec.id, object_key)
+            except Exception as exc:
+                from core.database import AsyncSessionLocal
+                from models.specification import Specification
+                from sqlalchemy import select
+                async with AsyncSessionLocal() as s:
+                    r = await s.execute(select(Specification).where(Specification.id == spec.id))
+                    sp = r.scalar_one_or_none()
+                    if sp:
+                        sp.processing_status = "error"
+                    await s.commit()
+
+        asyncio.create_task(_run_inline())
+
+    return {"id": spec.id, "task_id": task_id, "status": "processing"}
 
 
 @router.get("/{spec_id}")

@@ -24,6 +24,10 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
       setTokens(res.data.access_token, res.data.refresh_token)
+      try {
+        const meRes = await api.get('/auth/me')
+        useAuthStore.getState().setUser({ id: meRes.data.id, email: meRes.data.email, role: meRes.data.role, orgId: meRes.data.org_id })
+      } catch { /* non-critical */ }
       navigate('/')
     } catch {
       setError('Invalid email or password')

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '@/api/client'
 import { Plus, FileSignature, Download } from 'lucide-react'
+import { downloadBlob } from '@/utils/download'
 
 export default function ProposalPage() {
   const { id: projectId } = useParams<{ id: string }>()
@@ -37,9 +38,9 @@ export default function ProposalPage() {
               <p className="text-sm text-gray-500">{p.client_name} · Valid until {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString() : '—'}</p>
               <span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'accepted' ? 'bg-green-100 text-green-700' : p.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
             </div>
-            <a href={`/api/v1/proposals/${p.id}/export/pdf`} target="_blank" className="btn-secondary text-xs flex items-center gap-1">
+            <button onClick={() => downloadBlob(`/proposals/${p.id}/export/pdf`, `proposal_${p.id}.pdf`)} className="btn-secondary text-xs flex items-center gap-1">
               <Download size={12} /> Export PDF
-            </a>
+            </button>
           </div>
         ))}
         {!proposals?.length && (

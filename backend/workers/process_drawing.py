@@ -35,23 +35,23 @@ async def _process_drawing_async(task, drawing_id: int, file_path: str, file_typ
     from models.drawing import Drawing, DrawingPage, Symbol, MaterialRun
     from ai.drawing_analyzer import analyze_drawing
 
-    _publish_progress(drawing_id, "downloading", 5)
+    await _publish_progress(drawing_id, "downloading", 5)
 
     # Download file
     file_bytes = download_file(file_path)
 
     # Convert DWG to DXF if needed
     if file_type == "dwg":
-        _publish_progress(drawing_id, "converting_dwg", 15)
+        await _publish_progress(drawing_id, "converting_dwg", 15)
         file_bytes = _convert_dwg_to_dxf(file_bytes)
         file_type = "dxf"
 
-    _publish_progress(drawing_id, "extracting_geometry", 30)
+    await _publish_progress(drawing_id, "extracting_geometry", 30)
 
     # Run AI analysis
     results = await analyze_drawing(drawing_id, file_bytes, file_type)
 
-    _publish_progress(drawing_id, "saving_results", 80)
+    await _publish_progress(drawing_id, "saving_results", 80)
 
     async with AsyncSessionLocal() as db:
         for result in results:
@@ -117,7 +117,7 @@ async def _process_drawing_async(task, drawing_id: int, file_path: str, file_typ
 
         await db.commit()
 
-    _publish_progress(drawing_id, "done", 100)
+    await _publish_progress(drawing_id, "done", 100)
     log.info(f"Drawing {drawing_id} processed: {len(results)} pages")
 
 
@@ -149,17 +149,12 @@ def _convert_dwg_to_dxf(dwg_bytes: bytes) -> bytes:
     raise RuntimeError("ODA converter produced no output")
 
 
-def _publish_progress(drawing_id: int, stage: str, percent: int):
-    import asyncio
+async def _publish_progress(drawing_id: int, stage: str, percent: int):
     try:
-        asyncio.run(_async_publish(drawing_id, stage, percent))
+        from core.redis_client import publish_job_progress
+        await publish_job_progress(f"drawing:{drawing_id}", {"stage": stage, "percent": percent})
     except Exception:
         pass
-
-
-async def _async_publish(drawing_id: int, stage: str, percent: int):
-    from core.redis_client import publish_job_progress
-    await publish_job_progress(f"drawing:{drawing_id}", {"stage": stage, "percent": percent})
 
 
 def _update_drawing_status(drawing_id: int, status: str, error: str | None = None):

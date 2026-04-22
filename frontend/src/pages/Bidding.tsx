@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '@/api/client'
 import { Plus, Download, Calculator, ChevronDown } from 'lucide-react'
+import { downloadBlob } from '@/utils/download'
 
 export default function BiddingPage() {
   const { id: projectId } = useParams<{ id: string }>()
@@ -61,9 +62,9 @@ export default function BiddingPage() {
               <button onClick={() => calculate.mutate(selectedBidId)} className="btn-secondary text-sm flex items-center gap-1" disabled={calculate.isPending}>
                 <Calculator size={14} /> Calculate
               </button>
-              <a href={`/api/v1/bids/${selectedBidId}/export/excel`} className="btn-secondary text-sm flex items-center gap-1">
+              <button onClick={() => downloadBlob(`/bids/${selectedBidId}/export/excel`, `bid_${selectedBidId}.xlsx`)} className="btn-secondary text-sm flex items-center gap-1">
                 <Download size={14} /> Export Excel
-              </a>
+              </button>
             </>
           )}
           <button onClick={() => createBid.mutate()} className="btn-primary flex items-center gap-2">
