@@ -3,6 +3,7 @@ Specification document parser using pdfplumber for text extraction
 and Claude API for structured data extraction.
 """
 import json
+import io
 import logging
 import re
 from dataclasses import dataclass, field
@@ -33,7 +34,7 @@ def extract_spec_sections(file_bytes: bytes) -> list[SpecSectionData]:
     """Extract and chunk a spec PDF into CSI sections."""
     sections = []
 
-    with pdfplumber.open(file_bytes) as pdf:
+    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
         full_text_pages = []
         for page in pdf.pages:
             text = page.extract_text() or ""
