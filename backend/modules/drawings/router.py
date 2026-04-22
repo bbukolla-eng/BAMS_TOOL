@@ -61,13 +61,27 @@ async def upload_drawing(
     db.add(drawing)
     await db.flush()
 
-    # Dispatch async processing
-    from workers.process_drawing import process_drawing_task
-    task = process_drawing_task.delay(drawing.id, object_key, ext.lstrip("."))
-    drawing.celery_task_id = task.id
-    drawing.processing_status = "processing"
+    # Attempt async dispatch; fall back to inline processing when no worker is available
+    task_id = None
+    try:
+        from workers.process_drawing import process_drawing_task
+        task = process_drawing_task.delay(drawing.id, object_key, ext.lstrip("."))
+        task_id = task.id
+        drawing.celery_task_id = task_id
+        drawing.processing_status = "processing"
+    except Exception:
+        # No Celery worker — run synchronously in a background thread
+        import asyncio, concurrent.futures
+        drawing.processing_status = "processing"
+        await db.commit()
 
-    return {"id": drawing.id, "task_id": task.id, "status": "processing"}
+        async def _run_inline():
+            from workers.process_drawing import _run_pipeline
+            await _run_pipeline(drawing.id, object_key, ext.lstrip("."))
+
+        asyncio.create_task(_run_inline())
+
+    return {"id": drawing.id, "task_id": task_id, "status": "processing"}
 
 
 @router.get("/{drawing_id}")

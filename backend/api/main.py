@@ -72,3 +72,16 @@ app.include_router(equipment_router, prefix=f"{prefix}/equipment", tags=["equipm
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "0.1.0"}
+
+
+@app.get(f"{settings.api_prefix}/storage/{{object_key:path}}")
+async def serve_local_file(object_key: str):
+    """Serve files from local storage (development only)."""
+    import os
+    from fastapi.responses import FileResponse
+    from fastapi import HTTPException
+    root = os.getenv("LOCAL_STORAGE_PATH", "./storage")
+    file_path = os.path.join(root, object_key)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path)

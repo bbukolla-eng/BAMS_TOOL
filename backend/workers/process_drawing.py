@@ -178,3 +178,12 @@ async def _async_update_status(drawing_id: int, status: str, error: str | None):
             drawing.processing_status = status
             drawing.processing_error = error
             await db.commit()
+
+
+async def _run_pipeline(drawing_id: int, file_path: str, file_type: str):
+    """Public entry point for inline (non-Celery) processing."""
+    try:
+        await _process_drawing_async(None, drawing_id, file_path, file_type)
+    except Exception as exc:
+        log.error(f"Inline drawing processing failed: {exc}")
+        await _async_update_status(drawing_id, "error", str(exc))
