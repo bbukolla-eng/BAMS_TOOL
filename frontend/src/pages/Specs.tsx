@@ -38,6 +38,7 @@ export default function SpecsPage() {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [selectedSpec, setSelectedSpec] = useState<number | null>(null)
   const [expandedSection, setExpandedSection] = useState<number | null>(null)
 
@@ -60,12 +61,15 @@ export default function SpecsPage() {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
+    setUploadError(null)
     const form = new FormData()
     form.append('file', file)
     try {
       const res = await api.post(`/specs/project/${projectId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
       qc.invalidateQueries({ queryKey: ['specs', projectId] })
       setSelectedSpec(res.data.id)
+    } catch (err: any) {
+      setUploadError(err?.response?.data?.detail || 'Upload failed. Please try again.')
     } finally {
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
@@ -83,6 +87,10 @@ export default function SpecsPage() {
           </button>
         </div>
       </div>
+
+      {uploadError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{uploadError}</div>
+      )}
 
       <div className="flex gap-4">
         {/* Spec list */}

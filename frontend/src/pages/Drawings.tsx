@@ -69,6 +69,7 @@ export default function DrawingsPage() {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [discipline, setDiscipline] = useState('mechanical')
 
   const { data } = useQuery({
@@ -85,12 +86,15 @@ export default function DrawingsPage() {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
+    setUploadError(null)
     const form = new FormData()
     form.append('file', file)
     form.append('discipline', discipline)
     try {
       await api.post(`/drawings/project/${projectId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
       qc.invalidateQueries({ queryKey: ['drawings', projectId] })
+    } catch (err: any) {
+      setUploadError(err?.response?.data?.detail || 'Upload failed. Please try again.')
     } finally {
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
@@ -117,6 +121,10 @@ export default function DrawingsPage() {
           </button>
         </div>
       </div>
+
+      {uploadError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{uploadError}</div>
+      )}
 
       {drawings.length === 0 ? (
         <div className="card p-12 text-center">

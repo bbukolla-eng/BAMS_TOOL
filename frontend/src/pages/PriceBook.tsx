@@ -9,6 +9,8 @@ export default function PriceBookPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
   const [form, setForm] = useState({ category: '', description: '', unit: 'EA', material_unit_cost: 0, labor_hours_per_unit: 0, csi_code: '', size: '' })
 
   const { data } = useQuery({
@@ -24,10 +26,19 @@ export default function PriceBookPage() {
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const form = new FormData()
-    form.append('file', file)
-    await api.post('/price-book/import-excel', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-    qc.invalidateQueries({ queryKey: ['price-book'] })
+    setImporting(true)
+    setImportError(null)
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      await api.post('/price-book/import-excel', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+      qc.invalidateQueries({ queryKey: ['price-book'] })
+    } catch (err: any) {
+      setImportError(err?.response?.data?.detail || 'Import failed. Check the file format and try again.')
+    } finally {
+      setImporting(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
   }
 
   const categories = [...new Set((data?.items || []).map((i: any) => i.category))].sort()
@@ -38,14 +49,18 @@ export default function PriceBookPage() {
         <h1 className="text-2xl font-bold text-gray-900">Price Book</h1>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-          <button onClick={() => fileRef.current?.click()} className="btn-secondary flex items-center gap-2 text-sm">
-            <Upload size={14} /> Import Excel
+          <button onClick={() => fileRef.current?.click()} disabled={importing} className="btn-secondary flex items-center gap-2 text-sm">
+            <Upload size={14} /> {importing ? 'Importing...' : 'Import Excel'}
           </button>
           <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2">
             <Plus size={16} /> Add Item
           </button>
         </div>
       </div>
+
+      {importError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{importError}</div>
+      )}
 
       <div className="flex gap-3 mb-4">
         <div className="relative flex-1">
