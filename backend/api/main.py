@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from core.config import settings
+from core.database import Base, engine
 
 log = structlog.get_logger()
 
@@ -13,6 +14,10 @@ log = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("BAMS AI starting up", env=settings.app_env)
+    if "sqlite" in settings.database_url:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        log.info("SQLite tables created/verified")
     yield
     log.info("BAMS AI shutting down")
 

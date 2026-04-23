@@ -10,14 +10,31 @@ from core.config import settings
 # Celery workers use NullPool: each task gets a fresh connection,
 # avoiding asyncio event-loop cross-contamination between tasks.
 _in_celery = os.getenv("CELERY_WORKER_RUNNING", "0") == "1"
+_is_sqlite = "sqlite" in settings.database_url
 
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_pre_ping=True,
-    **({} if _in_celery else {"pool_size": 10, "max_overflow": 20}),
-    **({"poolclass": NullPool} if _in_celery else {}),
-)
+if _is_sqlite:
+    from sqlalchemy.pool import StaticPool
+    engine = create_async_engine(
+        settings.database_url,
+        echo=settings.debug,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+elif _in_celery:
+    engine = create_async_engine(
+        settings.database_url,
+        echo=settings.debug,
+        pool_pre_ping=True,
+        poolclass=NullPool,
+    )
+else:
+    engine = create_async_engine(
+        settings.database_url,
+        echo=settings.debug,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+    )
 
 AsyncSessionLocal = async_sessionmaker(
     engine,
