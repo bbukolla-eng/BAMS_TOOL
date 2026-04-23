@@ -21,9 +21,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest
-          # Install pure-Python deps needed by the tests that don't skip
-          pip install openpyxl
+          pip install pytest openpyxl "python-jose[cryptography]" "passlib[bcrypt]"
 
       - name: Run tests
         run: |

@@ -86,11 +86,14 @@ async def get_me(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(data: RefreshRequest):
+async def refresh_token(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
     payload = decode_token(data.refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise UnauthorizedError()
     user_id = payload.get("sub")
+    result = await db.execute(select(User).where(User.id == int(user_id), User.is_active == True))
+    if not result.scalar_one_or_none():
+        raise UnauthorizedError()
     return TokenResponse(
         access_token=create_access_token(user_id),
         refresh_token=create_refresh_token(user_id),
