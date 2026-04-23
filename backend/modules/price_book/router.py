@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
 from pydantic import BaseModel
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
+from core.utils import _row, _rows
+from models.price_book import LaborAssembly, PriceBookItem
 from models.user import User
-from models.price_book import PriceBookItem, LaborAssembly
 
 router = APIRouter()
 
@@ -51,7 +52,7 @@ async def list_items(
 ):
     q = select(PriceBookItem).where(
         PriceBookItem.org_id == current_user.org_id,
-        PriceBookItem.is_active == True,
+        PriceBookItem.is_active.is_(True),
     )
     if category:
         q = q.where(PriceBookItem.category == category)
@@ -67,7 +68,7 @@ async def list_items(
     q = q.order_by(PriceBookItem.category, PriceBookItem.description)
     result = await db.execute(q)
     items = result.scalars().all()
-    return {"items": [i.__dict__ for i in items], "total": len(items)}
+    return {"items": _rows(items), "total": len(items)}
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -79,7 +80,7 @@ async def create_item(
     item = PriceBookItem(org_id=current_user.org_id, **data.model_dump(exclude_none=True))
     db.add(item)
     await db.flush()
-    return item.__dict__
+    return _row(item)
 
 
 @router.patch("/{item_id}")
@@ -100,7 +101,7 @@ async def update_item(
         raise NotFoundError("Price book item")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(item, field, value)
-    return item.__dict__
+    return _row(item)
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -128,7 +129,9 @@ async def import_from_excel(
     current_user: User = Depends(get_current_user),
 ):
     content = await file.read()
-    import openpyxl, io
+    import io
+
+    import openpyxl
     wb = openpyxl.load_workbook(io.BytesIO(content))
     ws = wb.active
     created = 0
@@ -156,9 +159,9 @@ async def list_labor_assemblies(
     current_user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(LaborAssembly).where(LaborAssembly.org_id == current_user.org_id, LaborAssembly.is_active == True)
+        select(LaborAssembly).where(LaborAssembly.org_id == current_user.org_id, LaborAssembly.is_active.is_(True))
     )
-    return {"items": [a.__dict__ for a in result.scalars().all()]}
+    return {"items": _rows(result.scalars().all())}
 
 
 @router.post("/labor-assemblies", status_code=status.HTTP_201_CREATED)
@@ -170,4 +173,4 @@ async def create_labor_assembly(
     assembly = LaborAssembly(org_id=current_user.org_id, **data.model_dump(exclude_none=True))
     db.add(assembly)
     await db.flush()
-    return assembly.__dict__
+    return _row(assembly)

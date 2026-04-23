@@ -4,7 +4,7 @@ Aggregates symbols and material runs into TakeoffItem rows.
 Only updates items that are not locked (is_locked=False).
 """
 import logging
-from celery import shared_task
+
 from core.celery_app import celery_app
 
 log = logging.getLogger(__name__)
@@ -18,21 +18,23 @@ def run_takeoff_task(self, project_id: int):
 
 
 async def _run_takeoff_async(project_id: int):
-    from core.database import AsyncSessionLocal
-    from models.drawing import Drawing, DrawingPage, Symbol, MaterialRun
-    from models.takeoff import TakeoffItem
-    from models.price_book import PriceBookItem
+    from sqlalchemy import delete, select
+
     from ai.div23.symbols import HVAC_SYMBOLS, MATERIAL_RUN_TYPES
-    from sqlalchemy import select, delete
+    from core.database import AsyncSessionLocal
+    from models.drawing import Drawing, DrawingPage, MaterialRun, Symbol
+    from models.price_book import PriceBookItem
+    from models.takeoff import TakeoffItem
 
     async with AsyncSessionLocal() as db:
         # Nullify bid_line_items references before deleting unlocked takeoff rows
         from sqlalchemy import update
+
         from models.bid import BidLineItem
         unlocked_ids_result = await db.execute(
             select(TakeoffItem.id).where(
                 TakeoffItem.project_id == project_id,
-                TakeoffItem.is_locked == False,
+                TakeoffItem.is_locked.is_(False),
             )
         )
         unlocked_ids = [row[0] for row in unlocked_ids_result.fetchall()]
@@ -45,7 +47,7 @@ async def _run_takeoff_async(project_id: int):
         await db.execute(
             delete(TakeoffItem).where(
                 TakeoffItem.project_id == project_id,
-                TakeoffItem.is_locked == False,
+                TakeoffItem.is_locked.is_(False),
             )
         )
 
@@ -95,7 +97,7 @@ async def _run_takeoff_async(project_id: int):
             pb_result = await db.execute(
                 select(PriceBookItem).where(
                     PriceBookItem.csi_code == sym_def.csi_code,
-                    PriceBookItem.is_active == True,
+                    PriceBookItem.is_active.is_(True),
                 ).limit(1)
             )
             pb_item = pb_result.scalar_one_or_none()
@@ -134,7 +136,7 @@ async def _run_takeoff_async(project_id: int):
             pb_result = await db.execute(
                 select(PriceBookItem).where(
                     PriceBookItem.csi_code == run_def["csi_code"],
-                    PriceBookItem.is_active == True,
+                    PriceBookItem.is_active.is_(True),
                 ).limit(1)
             )
             pb_item = pb_result.scalar_one_or_none()

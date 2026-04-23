@@ -1,6 +1,7 @@
 import io
+
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 
@@ -12,10 +13,7 @@ def export_to_excel(bid, line_items) -> bytes:
     # Styles
     header_font = Font(bold=True, color="FFFFFF", size=11)
     header_fill = PatternFill("solid", fgColor="1a3a5c")
-    total_fill = PatternFill("solid", fgColor="e8f0fe")
     currency_fmt = '#,##0.00'
-    thin = Side(style="thin")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     # Title
     ws.merge_cells("A1:I1")

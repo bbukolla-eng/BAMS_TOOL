@@ -2,6 +2,7 @@
 Self-learning: weekly model retraining and accuracy reporting.
 """
 import logging
+
 from core.celery_app import celery_app
 
 log = logging.getLogger(__name__)
@@ -22,17 +23,18 @@ def generate_accuracy_report():
 
 
 async def _check_and_retrain_async():
+    from sqlalchemy import func, select
+
     from core.database import AsyncSessionLocal
     from models.learning import FeedbackEvent, MLTrainingJob
-    from sqlalchemy import select, func
 
     async with AsyncSessionLocal() as db:
         for model_type in ["mechanical", "electrical", "plumbing"]:
             count_result = await db.execute(
                 select(func.count(FeedbackEvent.id)).where(
                     FeedbackEvent.event_type == "symbol_correction",
-                    FeedbackEvent.is_training_candidate == True,
-                    FeedbackEvent.used_in_training_job_id == None,
+                    FeedbackEvent.is_training_candidate.is_(True),
+                    FeedbackEvent.used_in_training_job_id.is_(None),
                 )
             )
             count = count_result.scalar() or 0
@@ -58,8 +60,8 @@ async def _check_and_retrain_async():
                     result2 = await db2.execute(
                         select(FeedbackEvent).where(
                             FeedbackEvent.event_type == "symbol_correction",
-                            FeedbackEvent.is_training_candidate == True,
-                            FeedbackEvent.used_in_training_job_id == None,
+                            FeedbackEvent.is_training_candidate.is_(True),
+                            FeedbackEvent.used_in_training_job_id.is_(None),
                         )
                     )
                     for ev in result2.scalars().all():
@@ -71,6 +73,8 @@ async def _check_and_retrain_async():
                     finished_job = result3.scalar_one_or_none()
                     if finished_job:
                         finished_job.status = "completed" if success else "failed"
+                        finished_job.was_promoted = success  # True when best.pt was copied to current.pt
+                        finished_job.completed_at = __import__("datetime").datetime.utcnow()
                     await db2.commit()
                 return
 
@@ -80,7 +84,6 @@ async def _check_and_retrain_async():
 async def _run_training(model_type: str, job_id: int) -> bool:
     """Invoke the YOLO training script in a subprocess to avoid event loop conflicts."""
     import asyncio
-    import subprocess
     import sys
     from pathlib import Path
 
@@ -104,7 +107,7 @@ async def _run_training(model_type: str, job_id: int) -> bool:
         else:
             log.error("Training failed for %s: %s", model_type, stderr.decode()[-2000:])
             return False
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.error("Training timed out for %s", model_type)
         return False
     except Exception as e:
@@ -113,10 +116,11 @@ async def _run_training(model_type: str, job_id: int) -> bool:
 
 
 async def _accuracy_report_async():
+    from sqlalchemy import func, select
+
     from core.database import AsyncSessionLocal
-    from models.learning import MLTrainingJob, FeedbackEvent
-    from models.drawing import Symbol, MaterialRun
-    from sqlalchemy import select, func
+    from models.drawing import MaterialRun, Symbol
+    from models.learning import FeedbackEvent
 
     async with AsyncSessionLocal() as db:
         # Count recent corrections
@@ -130,8 +134,8 @@ async def _accuracy_report_async():
         total_syms = await db.execute(select(func.count(Symbol.id)))
         total_runs = await db.execute(select(func.count(MaterialRun.id)))
 
-        verified_syms = await db.execute(select(func.count(Symbol.id)).where(Symbol.is_verified == True))
-        verified_runs = await db.execute(select(func.count(MaterialRun.id)).where(MaterialRun.is_verified == True))
+        verified_syms = await db.execute(select(func.count(Symbol.id)).where(Symbol.is_verified.is_(True)))
+        verified_runs = await db.execute(select(func.count(MaterialRun.id)).where(MaterialRun.is_verified.is_(True)))
 
         report = {
             "total_symbols_detected": total_syms.scalar() or 0,

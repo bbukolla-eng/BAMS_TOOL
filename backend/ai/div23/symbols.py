@@ -2,7 +2,7 @@
 Division 23 HVAC symbol library.
 Maps symbol types to CSI codes, descriptions, and takeoff rules.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

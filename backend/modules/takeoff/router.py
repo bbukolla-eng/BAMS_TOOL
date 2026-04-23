@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
-from models.user import User
 from models.takeoff import TakeoffItem
+from models.user import User
 
 router = APIRouter()
 
@@ -149,6 +149,7 @@ async def regenerate_takeoff(
         return {"task_id": task.id, "status": "processing"}
     except Exception:
         import asyncio
+
         from workers.run_takeoff import _run_takeoff_async
 
         async def _run():

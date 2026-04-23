@@ -1,5 +1,6 @@
 """Celery task for async proposal PDF generation."""
 import logging
+
 from core.celery_app import celery_app
 
 log = logging.getLogger(__name__)
@@ -13,11 +14,12 @@ def generate_proposal_task(self, proposal_id: int):
 
 
 async def _generate_async(proposal_id: int):
+    from sqlalchemy import select
+
     from core.database import AsyncSessionLocal
+    from core.storage import build_object_key, upload_file
     from models.proposal import Proposal
     from modules.proposals.generator import generate_proposal_pdf
-    from core.storage import upload_file, build_object_key
-    from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))

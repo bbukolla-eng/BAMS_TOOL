@@ -4,7 +4,6 @@ Set STORAGE_BACKEND=local in .env to use local disk (development/desktop mode).
 """
 import io
 import os
-import shutil
 from pathlib import Path
 
 from core.config import settings

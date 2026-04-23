@@ -5,6 +5,7 @@ and computes real-world lengths in feet.
 """
 import math
 from collections import defaultdict
+
 from ai.drawing_analyzer import ExtractedGeometry
 
 SNAP_TOLERANCE_FT = 0.5   # endpoints within 0.5 ft are considered connected
@@ -69,14 +70,14 @@ def _build_connected_runs(segments: list[tuple]) -> list[tuple]:
     # Build adjacency: endpoint → list of (other_endpoint, segment_index)
     adj: dict[tuple, list[tuple]] = defaultdict(list)
 
-    for i, (p1, p2, length, layer) in enumerate(segments):
+    for i, (p1, p2, _length, _layer) in enumerate(segments):
         adj[_snap(p1)].append((_snap(p2), i))
         adj[_snap(p2)].append((_snap(p1), i))
 
     visited_segs = set()
     runs = []
 
-    for i, (p1, p2, length, layer) in enumerate(segments):
+    for i, (p1, p2, _length, layer) in enumerate(segments):
         if i in visited_segs:
             continue
 

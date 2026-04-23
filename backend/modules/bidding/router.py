@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
-from models.user import User
-from models.bid import Bid, BidLineItem, BidSummarySection, BidStatus
+from core.utils import _row, _rows
+from models.bid import Bid, BidLineItem
 from models.overhead import OverheadConfig
 from models.takeoff import TakeoffItem
+from models.user import User
 
 router = APIRouter()
 
@@ -112,7 +113,7 @@ async def get_bid(
     lines_result = await db.execute(select(BidLineItem).where(BidLineItem.bid_id == bid_id).order_by(BidLineItem.sort_order))
     lines = lines_result.scalars().all()
     out = _bid_out(bid)
-    out["line_items"] = [l.__dict__ for l in lines]
+    out["line_items"] = _rows(lines)
     return out
 
 
@@ -136,7 +137,7 @@ async def add_line_item(
     db.add(line)
     await db.flush()
     await _recalculate_bid(bid, db)
-    return line.__dict__
+    return _row(line)
 
 
 class BidCalculateParams(BaseModel):
@@ -188,9 +189,9 @@ async def _recalculate_bid(bid: Bid, db: AsyncSession) -> None:
     lines_result = await db.execute(select(BidLineItem).where(BidLineItem.bid_id == bid.id))
     lines = lines_result.scalars().all()
 
-    bid.total_material_cost = sum(l.material_total for l in lines)
-    bid.total_labor_hours = sum(l.unit_labor_hours * l.quantity for l in lines if l.unit_labor_hours)
-    bid.total_labor_cost = sum(l.labor_total for l in lines)
+    bid.total_material_cost = sum(li.material_total for li in lines)
+    bid.total_labor_hours = sum(li.unit_labor_hours * li.quantity for li in lines if li.unit_labor_hours)
+    bid.total_labor_cost = sum(li.labor_total for li in lines)
 
     config = None
     if bid.overhead_config_id:

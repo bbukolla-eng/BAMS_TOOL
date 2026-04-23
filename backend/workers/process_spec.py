@@ -1,7 +1,7 @@
 """Celery task for spec document processing."""
-import logging
 import json
-from celery import shared_task
+import logging
+
 from core.celery_app import celery_app
 
 log = logging.getLogger(__name__)
@@ -18,22 +18,30 @@ def process_spec_task(self, spec_id: int, file_path: str):
         if self.request.retries >= self.max_retries:
             # Permanent failure — mark spec as error
             asyncio.run(_update_spec_status(spec_id, "error", str(exc)))
-        raise self.retry(exc=exc, countdown=30)
+        raise self.retry(exc=exc, countdown=30) from exc
 
 
 async def _process_spec_async(spec_id: int, file_path: str):
-    from core.storage import download_file
-    from core.database import AsyncSessionLocal
-    from models.specification import Specification, SpecSection
-    from ai.spec_parser import extract_spec_sections, analyze_section_with_claude, generate_embeddings, classify_spec_division
     from sqlalchemy import select
+
+    from ai.spec_parser import (
+        analyze_section_with_claude,
+        classify_spec_division,
+        extract_spec_sections,
+        generate_embeddings,
+    )
+    from core.database import AsyncSessionLocal
+    from core.storage import download_file
+    from models.specification import Specification, SpecSection
 
     await _publish_spec_progress(spec_id, "downloading", 5)
     file_bytes = download_file(file_path)
 
     # Detect division
     await _publish_spec_progress(spec_id, "classifying", 15)
-    import pdfplumber, io
+    import io
+
+    import pdfplumber
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
         first_text = pdf.pages[0].extract_text() if pdf.pages else ""
 
@@ -111,9 +119,10 @@ async def _publish_spec_progress(spec_id: int, stage: str, pct: int, message: st
 
 
 async def _update_spec_status(spec_id: int, status: str, error: str | None = None):
+    from sqlalchemy import select
+
     from core.database import AsyncSessionLocal
     from models.specification import Specification
-    from sqlalchemy import select
     try:
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(Specification).where(Specification.id == spec_id))

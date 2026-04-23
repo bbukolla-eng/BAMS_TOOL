@@ -1,10 +1,18 @@
+import os as _os
 from datetime import datetime
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
+
+# Use Text for SQLite (desktop mode), Vector(768) for PostgreSQL
+_db_url = _os.getenv("DATABASE_URL", "")
+if "sqlite" in _db_url:
+    _embedding_col = mapped_column(Text, nullable=True)
+else:
+    from pgvector.sqlalchemy import Vector as _Vec
+    _embedding_col = mapped_column(_Vec(768), nullable=True)
 
 
 class Specification(Base):
@@ -34,7 +42,7 @@ class SpecSection(Base):
     section_title: Mapped[str | None] = mapped_column(String(500))
     raw_text: Mapped[str | None] = mapped_column(Text)
     structured_data: Mapped[str | None] = mapped_column(Text)  # JSON string from Claude
-    embedding: Mapped[list | None] = mapped_column(Vector(768))
+    embedding: Mapped[str | None] = _embedding_col
     page_start: Mapped[int | None] = mapped_column(Integer)
     page_end: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

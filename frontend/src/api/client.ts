@@ -8,6 +8,13 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// If running inside Electron, update baseURL to use the Electron-managed backend port
+if (typeof window !== 'undefined' && (window as any).bamsElectron) {
+  ;(window as any).bamsElectron.getBackendUrl().then((url: string) => {
+    api.defaults.baseURL = `${url}/api/v1`
+  })
+}
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) config.headers.Authorization = `Bearer ${token}`
