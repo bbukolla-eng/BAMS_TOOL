@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
+from core.utils import _row, _rows
 from models.overhead import OverheadConfig
 from models.user import User
 
@@ -39,7 +40,7 @@ async def list_configs(
     result = await db.execute(
         select(OverheadConfig).where(OverheadConfig.org_id == current_user.org_id).order_by(OverheadConfig.is_default.desc())
     )
-    return {"items": [c.__dict__ for c in result.scalars().all()]}
+    return {"items": _rows(result.scalars().all())}
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -59,7 +60,7 @@ async def create_config(
     )
     db.add(config)
     await db.flush()
-    return config.__dict__
+    return _row(config)
 
 
 @router.patch("/{config_id}")
@@ -83,7 +84,7 @@ async def update_config(
         data.fica_rate + data.futa_rate + data.suta_rate + data.workers_comp_rate
         + data.general_liability_rate + data.health_insurance_rate + data.vacation_rate
     )
-    return config.__dict__
+    return _row(config)
 
 
 @router.post("/{config_id}/calculate")

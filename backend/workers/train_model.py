@@ -73,6 +73,8 @@ async def _check_and_retrain_async():
                     finished_job = result3.scalar_one_or_none()
                     if finished_job:
                         finished_job.status = "completed" if success else "failed"
+                        finished_job.was_promoted = success  # True when best.pt was copied to current.pt
+                        finished_job.completed_at = __import__("datetime").datetime.utcnow()
                     await db2.commit()
                 return
 

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
+from core.utils import _row, _rows
 from models.bid import Bid, BidLineItem
 from models.overhead import OverheadConfig
 from models.takeoff import TakeoffItem
@@ -112,7 +113,7 @@ async def get_bid(
     lines_result = await db.execute(select(BidLineItem).where(BidLineItem.bid_id == bid_id).order_by(BidLineItem.sort_order))
     lines = lines_result.scalars().all()
     out = _bid_out(bid)
-    out["line_items"] = [item.__dict__ for item in lines]
+    out["line_items"] = _rows(lines)
     return out
 
 
@@ -136,7 +137,7 @@ async def add_line_item(
     db.add(line)
     await db.flush()
     await _recalculate_bid(bid, db)
-    return line.__dict__
+    return _row(line)
 
 
 class BidCalculateParams(BaseModel):

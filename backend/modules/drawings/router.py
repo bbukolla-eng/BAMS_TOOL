@@ -8,6 +8,7 @@ from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
 from core.storage import build_object_key, get_presigned_url, upload_file
+from core.utils import _rows
 from models.drawing import (
     Drawing,
     DrawingDiscipline,
@@ -135,8 +136,8 @@ async def get_symbols(
     run_result = await db.execute(select(MaterialRun).where(MaterialRun.page_id == page.id))
 
     return {
-        "symbols": [s.__dict__ for s in sym_result.scalars().all()],
-        "material_runs": [r.__dict__ for r in run_result.scalars().all()],
+        "symbols": _rows(sym_result.scalars().all()),
+        "material_runs": _rows(run_result.scalars().all()),
     }
 
 

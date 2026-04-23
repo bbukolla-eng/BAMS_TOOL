@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
+from core.utils import _row, _rows
 from models.project import Project, ProjectMember, ProjectStatus, ProjectType, Task
 from models.user import User
 
@@ -118,7 +119,7 @@ async def list_tasks(
 ):
     await _get_project_or_404(project_id, current_user.org_id, db)
     result = await db.execute(select(Task).where(Task.project_id == project_id).order_by(Task.created_at.desc()))
-    return {"items": [t.__dict__ for t in result.scalars().all()]}
+    return {"items": _rows(result.scalars().all())}
 
 
 @router.post("/{project_id}/tasks", status_code=status.HTTP_201_CREATED)
@@ -132,7 +133,7 @@ async def create_task(
     task = Task(project_id=project_id, **data.model_dump(exclude_none=True))
     db.add(task)
     await db.flush()
-    return task.__dict__
+    return _row(task)
 
 
 async def _get_project_or_404(project_id: int, org_id: int, db: AsyncSession) -> Project:

@@ -10,6 +10,7 @@ from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
 from core.storage import build_object_key, upload_file
+from core.utils import _row, _rows
 from models.closeout import CloseoutDocument
 from models.user import User
 
@@ -58,7 +59,7 @@ async def list_closeout_docs(
         if doc.is_received:
             summary[t]["received"] += 1
 
-    return {"items": [d.__dict__ for d in docs], "summary": summary}
+    return {"items": _rows(docs), "summary": summary}
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -73,7 +74,7 @@ async def create_closeout_doc(
         doc.warranty_expiry_date = arrow.get(data.warranty_start_date).shift(months=data.warranty_duration_months).date()
     db.add(doc)
     await db.flush()
-    return doc.__dict__
+    return _row(doc)
 
 
 @router.patch("/{doc_id}")
@@ -89,7 +90,7 @@ async def update_closeout_doc(
         raise NotFoundError("Closeout document")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(doc, field, value)
-    return doc.__dict__
+    return _row(doc)
 
 
 @router.post("/{doc_id}/upload")

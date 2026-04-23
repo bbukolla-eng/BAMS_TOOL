@@ -9,6 +9,7 @@ from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
 from core.storage import build_object_key, upload_file
+from core.utils import _rows
 from models.specification import SpecDrawingLink, Specification, SpecSection
 from models.user import User
 
@@ -125,7 +126,7 @@ async def get_section_drawing_links(
     result = await db.execute(
         select(SpecDrawingLink).where(SpecDrawingLink.spec_section_id == section_id)
     )
-    return {"items": [link.__dict__ for link in result.scalars().all()]}
+    return {"items": _rows(result.scalars().all())}
 
 
 @router.post("/links", status_code=status.HTTP_201_CREATED)

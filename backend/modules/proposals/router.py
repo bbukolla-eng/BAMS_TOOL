@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
+from core.utils import _row, _rows
 from models.proposal import Proposal, ProposalStatus
 from models.user import User
 
@@ -38,7 +39,7 @@ async def list_proposals(
     result = await db.execute(
         select(Proposal).where(Proposal.project_id == project_id).order_by(Proposal.created_at.desc())
     )
-    return {"items": [p.__dict__ for p in result.scalars().all()]}
+    return {"items": _rows(result.scalars().all())}
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -56,7 +57,7 @@ async def create_proposal(
     )
     db.add(proposal)
     await db.flush()
-    return proposal.__dict__
+    return _row(proposal)
 
 
 @router.get("/{proposal_id}")
@@ -69,7 +70,7 @@ async def get_proposal(
     proposal = result.scalar_one_or_none()
     if not proposal:
         raise NotFoundError("Proposal")
-    return proposal.__dict__
+    return _row(proposal)
 
 
 @router.get("/{proposal_id}/export/pdf")

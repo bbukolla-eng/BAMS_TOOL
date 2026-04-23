@@ -65,10 +65,12 @@ async def export_dataset(model_type: str, out_dir: Path) -> int:
     classes = CLASS_NAMES.get(model_type, CLASS_NAMES["mechanical"])
     class_index = {name: i for i, name in enumerate(classes)}
 
+    for split in ("train", "val"):
+        (out_dir / "images" / split).mkdir(parents=True, exist_ok=True)
+        (out_dir / "labels" / split).mkdir(parents=True, exist_ok=True)
+
     images_dir = out_dir / "images" / "train"
     labels_dir = out_dir / "labels" / "train"
-    images_dir.mkdir(parents=True, exist_ok=True)
-    labels_dir.mkdir(parents=True, exist_ok=True)
 
     exported = 0
 
@@ -76,8 +78,8 @@ async def export_dataset(model_type: str, out_dir: Path) -> int:
         result = await db.execute(
             select(FeedbackEvent).where(
                 FeedbackEvent.event_type == "symbol_correction",
-                FeedbackEvent.is_training_candidate == True,
-                FeedbackEvent.used_in_training_job_id == None,
+                FeedbackEvent.is_training_candidate.is_(True),
+                FeedbackEvent.used_in_training_job_id.is_(None),
             )
         )
         events = result.scalars().all()
@@ -143,11 +145,34 @@ async def export_dataset(model_type: str, out_dir: Path) -> int:
 
 
 def write_dataset_yaml(out_dir: Path, model_type: str) -> Path:
+    """Write dataset.yaml with an 80/20 train/val split.
+
+    Images are distributed into val/ from train/ so that validation metrics
+    reflect held-out data rather than the training set.
+    """
+    import random
+
+    train_imgs = list((out_dir / "images" / "train").glob("*.jpg"))
+    if len(train_imgs) >= 5:
+        # Hold out 20% (minimum 1) for validation
+        n_val = max(1, len(train_imgs) // 5)
+        random.shuffle(train_imgs)
+        val_imgs = train_imgs[:n_val]
+        for img_path in val_imgs:
+            label_path = out_dir / "labels" / "train" / (img_path.stem + ".txt")
+            img_path.rename(out_dir / "images" / "val" / img_path.name)
+            if label_path.exists():
+                label_path.rename(out_dir / "labels" / "val" / label_path.name)
+        val_split = "images/val"
+    else:
+        # Too few images to split — reuse train to avoid empty val error
+        val_split = "images/train"
+
     classes = CLASS_NAMES.get(model_type, CLASS_NAMES["mechanical"])
     cfg = {
         "path": str(out_dir),
         "train": "images/train",
-        "val": "images/train",  # small datasets reuse train as val
+        "val": val_split,
         "nc": len(classes),
         "names": classes,
     }

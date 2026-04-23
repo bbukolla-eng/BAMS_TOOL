@@ -10,6 +10,7 @@ from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
 from core.storage import build_object_key, upload_file
+from core.utils import _row, _rows
 from models.submittal import Submittal, SubmittalItem, SubmittalStatus
 from models.user import User
 
@@ -53,7 +54,7 @@ async def list_submittals(
         q = q.where(Submittal.status == status_filter)
     q = q.order_by(Submittal.submittal_number)
     result = await db.execute(q)
-    return {"items": [s.__dict__ for s in result.scalars().all()]}
+    return {"items": _rows(result.scalars().all())}
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -76,7 +77,7 @@ async def create_submittal(
     )
     db.add(submittal)
     await db.flush()
-    return submittal.__dict__
+    return _row(submittal)
 
 
 @router.patch("/{submittal_id}")
@@ -94,7 +95,7 @@ async def update_submittal(
         setattr(submittal, field, value)
     if data.status == SubmittalStatus.revise_resubmit:
         submittal.revision += 1
-    return submittal.__dict__
+    return _row(submittal)
 
 
 @router.post("/{submittal_id}/upload")
@@ -127,4 +128,4 @@ async def add_submittal_item(
     item = SubmittalItem(submittal_id=submittal_id, **data.model_dump(exclude_none=True))
     db.add(item)
     await db.flush()
-    return item.__dict__
+    return _row(item)

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
+from core.utils import _rows
 from models.drawing import Drawing, MaterialRun, Symbol
 from models.learning import FeedbackEvent
 from models.user import User
@@ -51,11 +52,11 @@ async def reprocess_drawing(
     except Exception:
         import asyncio
 
-        from workers.process_drawing import _process_drawing_async
+        from workers.process_drawing import _run_pipeline
         _did, _fp, _ft = drawing.id, drawing.file_path, drawing.file_type
         async def _run():
             try:
-                await _process_drawing_async(None, _did, _fp, _ft)
+                await _run_pipeline(_did, _fp, _ft)
             except Exception:
                 pass
         asyncio.create_task(_run())
@@ -142,4 +143,4 @@ async def get_accuracy_report(
         select(MLTrainingJob).order_by(MLTrainingJob.created_at.desc()).limit(10)
     )
     jobs = result.scalars().all()
-    return {"training_jobs": [j.__dict__ for j in jobs]}
+    return {"training_jobs": _rows(jobs)}

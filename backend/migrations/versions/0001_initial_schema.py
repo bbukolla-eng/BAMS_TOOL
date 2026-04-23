@@ -280,7 +280,7 @@ def upgrade() -> None:
         sa.Column("section_title", sa.String(500)),
         sa.Column("raw_text", sa.Text),
         sa.Column("structured_data", sa.Text),
-        sa.Column("embedding", postgresql.ARRAY(sa.Float)),
+        sa.Column("embedding", postgresql.ARRAY(sa.Float)),  # see migration 0002 — upgraded to vector(768)
         sa.Column("page_start", sa.Integer),
         sa.Column("page_end", sa.Integer),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
