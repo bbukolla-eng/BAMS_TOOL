@@ -123,7 +123,7 @@ def _infer_size_from_layer(layer_name: str, mat_type: str) -> str | None:
 
     # Duct size: 12x8, 24X12, etc.
     duct_match = re.search(r"(\d+)X(\d+)", upper)
-    if duct_match and "DUCT" in mat_type:
+    if duct_match and "duct" in mat_type:
         return f"{duct_match.group(1)}x{duct_match.group(2)}"
 
     # Round duct: 12RD, 8-RD, etc.
