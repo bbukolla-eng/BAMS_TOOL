@@ -1,10 +1,10 @@
 import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 async def generate_proposal_pdf(proposal, db) -> bytes:
@@ -15,8 +15,6 @@ async def generate_proposal_pdf(proposal, db) -> bytes:
     title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=20, spaceAfter=6, textColor=colors.HexColor("#1a3a5c"))
     heading_style = ParagraphStyle("Heading", parent=styles["Heading2"], fontSize=13, textColor=colors.HexColor("#1a3a5c"), spaceBefore=12, spaceAfter=4)
     body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=10, spaceAfter=8, leading=14)
-    label_style = ParagraphStyle("Label", parent=styles["Normal"], fontSize=10, textColor=colors.grey)
-
     story = []
 
     # Header
@@ -72,6 +70,7 @@ async def generate_proposal_pdf(proposal, db) -> bytes:
     # Bid total (if bid linked)
     if proposal.bid_id:
         from sqlalchemy import select
+
         from models.bid import Bid
         bid_result = await db.execute(select(Bid).where(Bid.id == proposal.bid_id))
         bid = bid_result.scalar_one_or_none()

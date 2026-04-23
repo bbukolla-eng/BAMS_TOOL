@@ -9,7 +9,6 @@ Step 6: Generate page tiles
 Step 7: Save results to DB and update drawing status
 """
 import logging
-from celery import shared_task
 
 from core.celery_app import celery_app
 
@@ -26,14 +25,14 @@ def process_drawing_task(self, drawing_id: int, file_path: str, file_type: str):
     except Exception as exc:
         log.error(f"Drawing {drawing_id} processing failed: {exc}")
         _update_drawing_status(drawing_id, "error", str(exc))
-        raise self.retry(exc=exc, countdown=30)
+        raise self.retry(exc=exc, countdown=30) from exc
 
 
 async def _process_drawing_async(task, drawing_id: int, file_path: str, file_type: str):
-    from core.storage import download_file
-    from core.database import AsyncSessionLocal
-    from models.drawing import Drawing, DrawingPage, Symbol, MaterialRun
     from ai.drawing_analyzer import analyze_drawing
+    from core.database import AsyncSessionLocal
+    from core.storage import download_file
+    from models.drawing import Drawing, DrawingPage, MaterialRun, Symbol
 
     await _publish_progress(drawing_id, "downloading", 5)
 
@@ -123,7 +122,10 @@ async def _process_drawing_async(task, drawing_id: int, file_path: str, file_typ
 
 def _convert_dwg_to_dxf(dwg_bytes: bytes) -> bytes:
     """Convert DWG to DXF using ODA File Converter."""
-    import subprocess, tempfile, os
+    import os
+    import subprocess
+    import tempfile
+
     from core.config import settings
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -180,9 +182,10 @@ def _update_drawing_status(drawing_id: int, status: str, error: str | None = Non
 
 
 async def _async_update_status(drawing_id: int, status: str, error: str | None):
+    from sqlalchemy import select
+
     from core.database import AsyncSessionLocal
     from models.drawing import Drawing
-    from sqlalchemy import select
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Drawing).where(Drawing.id == drawing_id))
         drawing = result.scalar_one_or_none()

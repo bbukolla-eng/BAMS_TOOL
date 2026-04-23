@@ -1,15 +1,16 @@
 import uuid
+
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
-from core.storage import upload_file, build_object_key
+from core.storage import build_object_key, upload_file
+from models.specification import SpecDrawingLink, Specification, SpecSection
 from models.user import User
-from models.specification import Specification, SpecSection, SpecDrawingLink
-from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -74,10 +75,11 @@ async def upload_spec(
             from workers.process_spec import _process_spec_async
             try:
                 await _process_spec_async(spec.id, object_key)
-            except Exception as exc:
+            except Exception:
+                from sqlalchemy import select
+
                 from core.database import AsyncSessionLocal
                 from models.specification import Specification
-                from sqlalchemy import select
                 async with AsyncSessionLocal() as s:
                     r = await s.execute(select(Specification).where(Specification.id == spec.id))
                     sp = r.scalar_one_or_none()
@@ -123,7 +125,7 @@ async def get_section_drawing_links(
     result = await db.execute(
         select(SpecDrawingLink).where(SpecDrawingLink.spec_section_id == section_id)
     )
-    return {"items": [l.__dict__ for l in result.scalars().all()]}
+    return {"items": [link.__dict__ for link in result.scalars().all()]}
 
 
 @router.post("/links", status_code=status.HTTP_201_CREATED)

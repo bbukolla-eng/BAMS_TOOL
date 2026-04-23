@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
 from pydantic import BaseModel
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
+from models.price_book import LaborAssembly, PriceBookItem
 from models.user import User
-from models.price_book import PriceBookItem, LaborAssembly
 
 router = APIRouter()
 
@@ -51,7 +51,7 @@ async def list_items(
 ):
     q = select(PriceBookItem).where(
         PriceBookItem.org_id == current_user.org_id,
-        PriceBookItem.is_active == True,
+        PriceBookItem.is_active.is_(True),
     )
     if category:
         q = q.where(PriceBookItem.category == category)
@@ -128,7 +128,9 @@ async def import_from_excel(
     current_user: User = Depends(get_current_user),
 ):
     content = await file.read()
-    import openpyxl, io
+    import io
+
+    import openpyxl
     wb = openpyxl.load_workbook(io.BytesIO(content))
     ws = wb.active
     created = 0
@@ -156,7 +158,7 @@ async def list_labor_assemblies(
     current_user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(LaborAssembly).where(LaborAssembly.org_id == current_user.org_id, LaborAssembly.is_active == True)
+        select(LaborAssembly).where(LaborAssembly.org_id == current_user.org_id, LaborAssembly.is_active.is_(True))
     )
     return {"items": [a.__dict__ for a in result.scalars().all()]}
 

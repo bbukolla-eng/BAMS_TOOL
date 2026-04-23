@@ -44,8 +44,7 @@ jobs:
 
       - name: Lint backend
         run: |
-          ruff check backend/ --select E,F,I,UP,B --ignore B008 \
-            --exclude backend/.venv,backend/migrations
+          ruff check backend/ --exclude backend/.venv --exclude backend/migrations
 
   typecheck:
     name: TypeScript type-check

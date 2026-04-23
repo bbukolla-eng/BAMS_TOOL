@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
-from core.security import create_access_token, create_refresh_token, decode_token, verify_password
 from core.exceptions import UnauthorizedError
-from sqlalchemy import select
-from models.user import User, Organization
-from pydantic import BaseModel, EmailStr
+from core.security import create_access_token, create_refresh_token, decode_token, verify_password
+from models.user import Organization, User
 
 router = APIRouter()
 
@@ -32,7 +32,7 @@ class RefreshRequest(BaseModel):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == form_data.username, User.is_active == True))
+    result = await db.execute(select(User).where(User.email == form_data.username, User.is_active.is_(True)))
     user = result.scalar_one_or_none()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise UnauthorizedError()
@@ -49,7 +49,8 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    import re, uuid
+    import re
+    import uuid
     slug = re.sub(r'[^a-z0-9]+', '-', data.org_name.lower()).strip('-') + '-' + uuid.uuid4().hex[:6]
     org = Organization(name=data.org_name, slug=slug)
     db.add(org)
@@ -91,7 +92,7 @@ async def refresh_token(data: RefreshRequest, db: AsyncSession = Depends(get_db)
     if not payload or payload.get("type") != "refresh":
         raise UnauthorizedError()
     user_id = payload.get("sub")
-    result = await db.execute(select(User).where(User.id == int(user_id), User.is_active == True))
+    result = await db.execute(select(User).where(User.id == int(user_id), User.is_active.is_(True)))
     if not result.scalar_one_or_none():
         raise UnauthorizedError()
     return TokenResponse(
