@@ -47,7 +47,6 @@ LAYER_PATTERNS: list[tuple[str, str]] = [
     ("M-PIPE-STM", "pipe_steam"),
     ("M-PIPE-CON", "pipe_condensate"),
     ("STEAM", "pipe_steam"),
-    ("COND", "pipe_condensate"),
     # Refrigerant
     ("M-PIPE-REF", "pipe_refrigerant"),
     ("REFRIG", "pipe_refrigerant"),
@@ -65,10 +64,13 @@ LAYER_PATTERNS: list[tuple[str, str]] = [
     ("CONTROLS", "hvac_controls"),
 
     # ── Division 26 Electrical ────────────────────────────────────────────
+    # Must appear before short abbreviations like "COND" to avoid false matches
     ("E-POWR-CONDUIT", "conduit"),
     ("E-LTNG-CONDUIT", "conduit"),
     ("E-CONDUIT", "conduit"),
     ("ELEC-CONDUIT", "conduit"),
+    # Short condensate abbreviation — placed after all CONDUIT patterns
+    ("COND", "pipe_condensate"),
     ("E-WIRE", "wire"),
     ("E-CABLE", "wire"),
     ("E-TRAY", "cable_tray"),

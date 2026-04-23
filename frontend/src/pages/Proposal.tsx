@@ -2,23 +2,39 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '@/api/client'
-import { Plus, FileSignature, Download } from 'lucide-react'
+import { Plus, FileSignature, Download, Send } from 'lucide-react'
 import { downloadBlob } from '@/utils/download'
 
 export default function ProposalPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
+  const [sendProposalId, setSendProposalId] = useState<number | null>(null)
+  const [sendEmail, setSendEmail] = useState('')
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [sendSuccess, setSendSuccess] = useState(false)
   const [form, setForm] = useState({ title: '', client_name: '', attention_to: '', scope_of_work: '', inclusions: '', exclusions: '', clarifications: '', validity_days: 30 })
+  const [selectedBid, setSelectedBid] = useState('')
 
   const { data: bids } = useQuery({ queryKey: ['bids', projectId], queryFn: () => api.get(`/bids/project/${projectId}`).then(r => r.data.items) })
   const { data: proposals } = useQuery({ queryKey: ['proposals', projectId], queryFn: () => api.get(`/proposals/project/${projectId}`).then(r => r.data.items) })
 
-  const [selectedBid, setSelectedBid] = useState('')
-
   const create = useMutation({
     mutationFn: (d: any) => api.post('/proposals/', { project_id: parseInt(projectId!), bid_id: selectedBid ? parseInt(selectedBid) : undefined, ...d }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['proposals', projectId] }); setShowCreate(false) },
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: ({ id, email }: { id: number; email: string }) =>
+      api.post(`/proposals/${id}/send`, { to_email: email }),
+    onSuccess: () => {
+      setSendSuccess(true)
+      qc.invalidateQueries({ queryKey: ['proposals', projectId] })
+      setTimeout(() => { setSendProposalId(null); setSendSuccess(false); setSendEmail('') }, 2000)
+    },
+    onError: (err: any) => {
+      setSendError(err?.response?.data?.detail || 'Failed to send. Check SMTP configuration.')
+    },
   })
 
   return (
@@ -38,9 +54,17 @@ export default function ProposalPage() {
               <p className="text-sm text-gray-500">{p.client_name} · Valid until {p.expiry_date ? new Date(p.expiry_date).toLocaleDateString() : '—'}</p>
               <span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'accepted' ? 'bg-green-100 text-green-700' : p.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
             </div>
-            <button onClick={() => downloadBlob(`/proposals/${p.id}/export/pdf`, `proposal_${p.id}.pdf`)} className="btn-secondary text-xs flex items-center gap-1">
-              <Download size={12} /> Export PDF
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setSendProposalId(p.id); setSendEmail(''); setSendError(null); setSendSuccess(false) }}
+                className="btn-secondary text-xs flex items-center gap-1"
+              >
+                <Send size={12} /> Send
+              </button>
+              <button onClick={() => downloadBlob(`/proposals/${p.id}/export/pdf`, `proposal_${p.id}.pdf`)} className="btn-secondary text-xs flex items-center gap-1">
+                <Download size={12} /> Export PDF
+              </button>
+            </div>
           </div>
         ))}
         {!proposals?.length && (
@@ -51,6 +75,44 @@ export default function ProposalPage() {
         )}
       </div>
 
+      {/* Send modal */}
+      {sendProposalId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold mb-4">Send Proposal</h2>
+            {sendSuccess ? (
+              <div className="text-center py-4">
+                <p className="text-green-600 font-medium">Proposal sent successfully!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <input
+                  type="email"
+                  value={sendEmail}
+                  onChange={(e) => { setSendEmail(e.target.value); setSendError(null) }}
+                  placeholder="Client email address *"
+                  required
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                {sendError && <p className="text-sm text-red-600">{sendError}</p>}
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => setSendProposalId(null)} className="btn-secondary flex-1">Cancel</button>
+                  <button
+                    type="button"
+                    disabled={!sendEmail || sendMutation.isPending}
+                    onClick={() => sendMutation.mutate({ id: sendProposalId, email: sendEmail })}
+                    className="btn-primary flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Send size={14} /> {sendMutation.isPending ? 'Sending...' : 'Send PDF'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Create modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-auto">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 my-4">
