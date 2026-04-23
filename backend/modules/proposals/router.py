@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, Response, status, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr
-from datetime import date
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
-from models.user import User
 from models.proposal import Proposal, ProposalStatus
+from models.user import User
 
 router = APIRouter()
 
@@ -105,8 +105,8 @@ async def send_proposal(
     current_user: User = Depends(get_current_user),
 ):
     """Email the proposal PDF to the client."""
+    from core.email import proposal_html, send_email
     from modules.proposals.generator import generate_proposal_pdf
-    from core.email import send_email, proposal_html
 
     result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
     proposal = result.scalar_one_or_none()

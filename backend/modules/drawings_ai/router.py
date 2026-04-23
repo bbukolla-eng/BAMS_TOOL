@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
-from models.user import User
-from models.drawing import Drawing, Symbol, MaterialRun
+from models.drawing import Drawing, MaterialRun, Symbol
 from models.learning import FeedbackEvent
-from pydantic import BaseModel
+from models.user import User
 
 router = APIRouter()
 
@@ -50,6 +50,7 @@ async def reprocess_drawing(
         return {"task_id": task.id, "status": "processing"}
     except Exception:
         import asyncio
+
         from workers.process_drawing import _process_drawing_async
         _did, _fp, _ft = drawing.id, drawing.file_path, drawing.file_type
         async def _run():

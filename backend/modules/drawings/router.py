@@ -1,15 +1,22 @@
 import uuid
+
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import NotFoundError
-from core.storage import upload_file, get_presigned_url, build_object_key
+from core.storage import build_object_key, get_presigned_url, upload_file
+from models.drawing import (
+    Drawing,
+    DrawingDiscipline,
+    DrawingMarkup,
+    DrawingPage,
+    MaterialRun,
+    Symbol,
+)
 from models.user import User
-from models.drawing import Drawing, DrawingPage, Symbol, MaterialRun, DrawingMarkup, DrawingDiscipline
-from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -71,7 +78,7 @@ async def upload_drawing(
         drawing.processing_status = "processing"
     except Exception:
         # No Celery worker — run synchronously in a background thread
-        import asyncio, concurrent.futures
+        import asyncio
         drawing.processing_status = "processing"
         await db.commit()
 

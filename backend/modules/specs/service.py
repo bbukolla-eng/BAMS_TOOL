@@ -1,9 +1,8 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.specification import SpecSection, SpecDrawingLink
-from models.drawing import Symbol, MaterialRun, DrawingPage
-
+from models.drawing import MaterialRun, Symbol
+from models.specification import SpecSection
 
 # CSI division-to-HVAC symbol/material type mapping
 _DIV_SYMBOL_KEYWORDS: dict[str, list[str]] = {
@@ -65,7 +64,7 @@ async def find_spec_drawing_matches(spec_id: int, section_id: int, db: AsyncSess
     sym_keywords = _DIV_SYMBOL_KEYWORDS.get(division or "", [])
     sym_q = select(Symbol).where(Symbol.page_id.in_(page_ids))
     if sym_keywords:
-        from sqlalchemy import or_, func
+        from sqlalchemy import func, or_
         sym_q = sym_q.where(
             or_(*[func.lower(Symbol.symbol_type).contains(kw) for kw in sym_keywords])
         )
@@ -86,7 +85,7 @@ async def find_spec_drawing_matches(spec_id: int, section_id: int, db: AsyncSess
     mat_keywords = _DIV_MATERIAL_KEYWORDS.get(division or "", [])
     run_q = select(MaterialRun).where(MaterialRun.page_id.in_(page_ids))
     if mat_keywords:
-        from sqlalchemy import or_, func
+        from sqlalchemy import func, or_
         run_q = run_q.where(
             or_(*[func.lower(MaterialRun.material_type).contains(kw) for kw in mat_keywords])
         )

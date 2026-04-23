@@ -42,19 +42,19 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 from modules.auth.router import router as auth_router
-from modules.projects.router import router as projects_router
+from modules.bidding.router import router as bidding_router
+from modules.closeout.router import router as closeout_router
 from modules.drawings.router import router as drawings_router
 from modules.drawings_ai.router import router as drawings_ai_router
-from modules.specs.router import router as specs_router
-from modules.takeoff.router import router as takeoff_router
-from modules.price_book.router import router as price_book_router
-from modules.trades.router import router as trades_router
-from modules.overhead.router import router as overhead_router
-from modules.bidding.router import router as bidding_router
-from modules.proposals.router import router as proposals_router
-from modules.submittals.router import router as submittals_router
-from modules.closeout.router import router as closeout_router
 from modules.equipment.router import router as equipment_router
+from modules.overhead.router import router as overhead_router
+from modules.price_book.router import router as price_book_router
+from modules.projects.router import router as projects_router
+from modules.proposals.router import router as proposals_router
+from modules.specs.router import router as specs_router
+from modules.submittals.router import router as submittals_router
+from modules.takeoff.router import router as takeoff_router
+from modules.trades.router import router as trades_router
 
 prefix = settings.api_prefix
 
@@ -83,8 +83,9 @@ async def health():
 async def serve_local_file(object_key: str):
     """Serve files from local storage (development only)."""
     import os
-    from fastapi.responses import FileResponse
+
     from fastapi import HTTPException
+    from fastapi.responses import FileResponse
     root = os.getenv("LOCAL_STORAGE_PATH", settings.local_storage_path)
     file_path = os.path.join(root, object_key)
     if not os.path.isfile(file_path):
@@ -103,11 +104,13 @@ async def job_progress_stream(job_key: str, token: str | None = None):
     """
     import asyncio
     import json
+
     from fastapi.responses import StreamingResponse
 
     async def event_generator():
         try:
             import redis.asyncio as aioredis
+
             from core.config import settings as cfg
             r = aioredis.from_url(cfg.redis_url, decode_responses=True)
             pubsub = r.pubsub()

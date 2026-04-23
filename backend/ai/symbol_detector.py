@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+
 from ai.drawing_analyzer import ExtractedGeometry
 
 log = logging.getLogger(__name__)

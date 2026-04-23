@@ -5,7 +5,6 @@ Dispatches to the appropriate sub-analyzer based on file type.
 """
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +51,9 @@ async def analyze_drawing(drawing_id: int, file_bytes: bytes, file_type: str) ->
         from ai.dxf_extractor import extract_dxf
         geometries = extract_dxf(file_bytes)
     else:
-        import tempfile, os
+        import os
+        import tempfile
+
         from ai.raster_analyzer import analyze_raster
         with tempfile.NamedTemporaryFile(suffix=f".{file_type}", delete=False) as tmp:
             tmp.write(file_bytes)

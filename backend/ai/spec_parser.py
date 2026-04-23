@@ -2,14 +2,14 @@
 Specification document parser using pdfplumber for text extraction
 and Claude API for structured data extraction.
 """
-import json
 import io
+import json
 import logging
 import re
 from dataclasses import dataclass, field
 
-import pdfplumber
 import anthropic
+import pdfplumber
 
 from core.config import settings
 

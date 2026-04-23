@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from pydantic import BaseModel
 from datetime import date
+
+from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.deps import get_current_user
-from core.exceptions import NotFoundError, ForbiddenError
+from core.exceptions import NotFoundError
+from models.project import Project, ProjectMember, ProjectStatus, ProjectType, Task
 from models.user import User
-from models.project import Project, ProjectMember, Task, Milestone, ProjectStatus, ProjectType
 
 router = APIRouter()
 

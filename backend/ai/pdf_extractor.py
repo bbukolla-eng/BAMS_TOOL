@@ -3,10 +3,11 @@ PDF vector geometry extractor using PyMuPDF.
 Extracts lines, polylines, text, and computes real-world scale.
 """
 import re
+
 import fitz  # PyMuPDF
+
 from ai.drawing_analyzer import ExtractedGeometry
 from ai.layer_classifier import classify_layer_from_color
-
 
 # Common scale patterns in title blocks
 SCALE_PATTERNS = [

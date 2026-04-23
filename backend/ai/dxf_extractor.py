@@ -4,8 +4,9 @@ Handles layer-based material classification.
 """
 import io
 import math
+
 import ezdxf
-from ezdxf.math import Vec2
+
 from ai.drawing_analyzer import ExtractedGeometry
 from ai.layer_classifier import classify_layer_from_name
 
@@ -16,7 +17,7 @@ def extract_dxf(file_bytes: bytes) -> list[ExtractedGeometry]:
     except Exception:
         try:
             doc = ezdxf.read(io.BytesIO(file_bytes))
-        except Exception as e:
+        except Exception:
             return [ExtractedGeometry(page_number=1)]
 
     geom = ExtractedGeometry(page_number=1)
