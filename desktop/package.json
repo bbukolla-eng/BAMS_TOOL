@@ -11,9 +11,9 @@
     "start": "electron .",
     "dev": "concurrently \"tsc -w\" \"electron .\"",
     "build": "tsc && electron-builder",
-    "build:mac": "tsc && electron-builder --mac",
-    "build:win": "tsc && electron-builder --win",
-    "build:linux": "tsc && electron-builder --linux"
+    "build:mac": "tsc && electron-builder --mac --publish never",
+    "build:win": "tsc && electron-builder --win --publish never",
+    "build:linux": "tsc && electron-builder --linux --publish never"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -40,7 +40,14 @@
       {
         "from": "../backend",
         "to": "backend",
-        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/.venv/**",
+          "!**/node_modules/**",
+          "!**/.git/**"
+        ]
       }
     ],
     "mac": {
