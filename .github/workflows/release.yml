@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'V*'
   workflow_dispatch:
     inputs:
       tag:
@@ -14,6 +15,7 @@ on:
 jobs:
   release:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -46,6 +48,9 @@ jobs:
       - name: Build desktop installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          CSC_LINK: ""
+          CSC_KEY_PASSWORD: ""
+          ELECTRON_SKIP_NOTARIZATION: true
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd desktop
@@ -57,3 +62,4 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           files: ${{ matrix.artifact_glob }}
+          fail_on_unmatched_files: false

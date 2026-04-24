@@ -46,7 +46,10 @@
     "mac": {
       "category": "public.app-category.business",
       "icon": "assets/icon.icns",
-      "target": ["dmg", "zip"]
+      "target": ["dmg", "zip"],
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "win": {
       "icon": "assets/icon.ico",
