@@ -45,18 +45,15 @@
     ],
     "mac": {
       "category": "public.app-category.business",
-      "icon": "assets/icon.icns",
       "target": ["dmg", "zip"],
       "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     },
     "win": {
-      "icon": "assets/icon.ico",
       "target": ["nsis", "portable"]
     },
     "linux": {
-      "icon": "assets/icon.png",
       "target": ["AppImage", "deb"]
     },
     "nsis": {
