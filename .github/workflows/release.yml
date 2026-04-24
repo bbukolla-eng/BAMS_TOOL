@@ -12,6 +12,9 @@ on:
         required: true
         default: 'V1.0.1'
 
+permissions:
+  contents: write
+
 jobs:
   release:
     strategy:
@@ -56,6 +59,8 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           CSC_LINK: ""
           CSC_KEY_PASSWORD: ""
+          WIN_CSC_LINK: ""
+          WIN_CSC_KEY_PASSWORD: ""
           ELECTRON_SKIP_NOTARIZATION: true
         run: cd desktop && npx electron-builder ${{ matrix.platform_flag }} --publish never
 
