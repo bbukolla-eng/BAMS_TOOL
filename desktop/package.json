@@ -4,7 +4,10 @@
   "description": "BAMS AI — MEP Construction Management Desktop App",
   "main": "dist/main.js",
   "homepage": "./",
-  "author": "BAMS AI",
+  "author": {
+    "name": "BAMS AI",
+    "email": "support@bamsai.com"
+  },
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
