@@ -38,6 +38,7 @@ frontend/.vite/
 desktop/node_modules/
 desktop/dist/
 desktop/out/
+dist-desktop/
 
 # Storage & uploads
 uploads/
