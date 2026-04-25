@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from enum import Enum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -22,6 +22,15 @@ class ProjectType(str, Enum):
     institutional = "institutional"
     healthcare = "healthcare"
     data_center = "data_center"
+    community = "community"
+    education = "education"
+
+
+class ProjectComplexity(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    very_high = "very_high"
 
 
 class TaskStatus(str, Enum):
@@ -49,8 +58,19 @@ class Project(Base):
     address: Mapped[str | None] = mapped_column(String(500))
     city: Mapped[str | None] = mapped_column(String(100))
     state: Mapped[str | None] = mapped_column(String(50))
+    client: Mapped[str | None] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     bid_due_date: Mapped[date | None] = mapped_column(Date)
+
+    # Project physicals / context for bid rollups
+    region_code: Mapped[str | None] = mapped_column(String(20), index=True)  # e.g. NY_METRO, MA_BOSTON, or state code
+    total_sf: Mapped[float | None] = mapped_column(Float)
+    floors: Mapped[int | None] = mapped_column(Integer)
+    stories: Mapped[int | None] = mapped_column(Integer)
+    complexity: Mapped[str | None] = mapped_column(String(20), default=ProjectComplexity.medium)
+    is_union: Mapped[bool] = mapped_column(Boolean, default=False)
+    target_bid_date: Mapped[date | None] = mapped_column(Date)
+
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

@@ -37,7 +37,13 @@ class Bid(Base):
     bond: Mapped[float] = mapped_column(Float, default=0.0)
     permit: Mapped[float] = mapped_column(Float, default=0.0)
     profit: Mapped[float] = mapped_column(Float, default=0.0)
+    total_equipment_cost: Mapped[float] = mapped_column(Float, default=0.0)
     grand_total: Mapped[float] = mapped_column(Float, default=0.0)
+
+    # Regional cost factor snapshot (1.0 = no adjustment). Captured at calculate time
+    # from the project's region_code so past bids remain stable if the lookup table changes.
+    regional_multiplier: Mapped[float] = mapped_column(Float, default=1.0)
+    region_code: Mapped[str | None] = mapped_column(String(40))
 
     notes: Mapped[str | None] = mapped_column(Text)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -50,6 +56,9 @@ class Bid(Base):
     project: Mapped["Project"] = relationship("Project", back_populates="bids")  # type: ignore[name-defined]
     line_items: Mapped[list["BidLineItem"]] = relationship("BidLineItem", back_populates="bid", cascade="all, delete-orphan")
     summary_sections: Mapped[list["BidSummarySection"]] = relationship("BidSummarySection", back_populates="bid", cascade="all, delete-orphan")
+    assumptions: Mapped[list["BidAssumption"]] = relationship("BidAssumption", back_populates="bid", cascade="all, delete-orphan")  # type: ignore[name-defined]
+    exclusions: Mapped[list["BidExclusion"]] = relationship("BidExclusion", back_populates="bid", cascade="all, delete-orphan")  # type: ignore[name-defined]
+    alternates: Mapped[list["BidAlternate"]] = relationship("BidAlternate", back_populates="bid", cascade="all, delete-orphan")  # type: ignore[name-defined]
     proposals: Mapped[list["Proposal"]] = relationship("Proposal", back_populates="bid")  # type: ignore[name-defined]
 
 
@@ -71,10 +80,12 @@ class BidLineItem(Base):
     unit_material_cost: Mapped[float] = mapped_column(Float, default=0.0)
     unit_labor_hours: Mapped[float] = mapped_column(Float, default=0.0)
     labor_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    unit_equipment_cost: Mapped[float] = mapped_column(Float, default=0.0)
 
     material_total: Mapped[float] = mapped_column(Float, default=0.0)
     labor_total: Mapped[float] = mapped_column(Float, default=0.0)
-    line_total: Mapped[float] = mapped_column(Float, default=0.0)
+    equipment_total: Mapped[float] = mapped_column(Float, default=0.0)
+    line_total: Mapped[float] = mapped_column(Float, default=0.0)  # includes regional multiplier
 
     notes: Mapped[str | None] = mapped_column(Text)
 

@@ -1,4 +1,5 @@
 from models.bid import Bid, BidLineItem, BidSummarySection
+from models.bid_notes import BidAlternate, BidAssumption, BidExclusion
 from models.closeout import CloseoutDocument
 from models.drawing import Drawing, DrawingMarkup, DrawingPage, MaterialRun, Symbol
 from models.equipment import Equipment
@@ -7,6 +8,7 @@ from models.overhead import OverheadConfig
 from models.price_book import LaborAssembly, PriceBookItem
 from models.project import Milestone, Project, ProjectMember, Task
 from models.proposal import Proposal
+from models.regional import LaborRate, RegionalMultiplier
 from models.specification import SpecDrawingLink, Specification, SpecSection
 from models.submittal import Submittal, SubmittalItem
 from models.takeoff import TakeoffItem
@@ -23,6 +25,8 @@ __all__ = [
     "Trade",
     "OverheadConfig",
     "Bid", "BidLineItem", "BidSummarySection",
+    "BidAssumption", "BidExclusion", "BidAlternate",
+    "RegionalMultiplier", "LaborRate",
     "Proposal",
     "Submittal", "SubmittalItem",
     "CloseoutDocument",

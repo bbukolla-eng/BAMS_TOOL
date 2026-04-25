@@ -16,6 +16,7 @@ class PriceBookItem(Base):
     # Identification
     csi_code: Mapped[str | None] = mapped_column(String(20), index=True)
     category: Mapped[str] = mapped_column(String(100), index=True)
+    subcategory: Mapped[str | None] = mapped_column(String(100), index=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     manufacturer: Mapped[str | None] = mapped_column(String(255))
     model_number: Mapped[str | None] = mapped_column(String(255))
@@ -26,8 +27,13 @@ class PriceBookItem(Base):
     material_unit_cost: Mapped[float] = mapped_column(Float, default=0.0)
     labor_hours_per_unit: Mapped[float] = mapped_column(Float, default=0.0)
     labor_rate: Mapped[float | None] = mapped_column(Float)  # $/hr, falls back to trade rate if null
+    equipment_unit_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    material_markup_pct: Mapped[float | None] = mapped_column(Float)  # per-item override (0.10 = 10%)
+    labor_markup_pct: Mapped[float | None] = mapped_column(Float)
 
     # Metadata
+    region_code: Mapped[str | None] = mapped_column(String(20), index=True)  # e.g. NY_METRO (null = national)
+    source: Mapped[str | None] = mapped_column(String(100))  # "RSMeans 2024", "vendor quote", etc.
     notes: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_price_update: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
