@@ -21,8 +21,7 @@ import logging
 from collections import defaultdict
 from typing import Any
 
-from ai.spec_parser import parse_json_payload
-from core.config import settings
+from ai.json_repair import parse_json_payload
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ async def propose_scope(project_id: int, db) -> dict[str, str]:
     a key is configured; otherwise returns a deterministic skeleton so the
     proposal still has usable text downstream."""
     context = await _gather_project_context(project_id, db)
+    from core.config import settings  # heavy import (pydantic-settings); load lazily
     if not settings.anthropic_api_key:
         return _deterministic_fallback(context)
 

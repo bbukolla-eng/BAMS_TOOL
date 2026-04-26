@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "backend"))
 
-from ai.spec_parser import (
+from ai.json_repair import (
     _largest_balanced_object,
     _repair_truncated_json,
     parse_json_payload,

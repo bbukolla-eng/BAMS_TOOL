@@ -3,12 +3,17 @@ Specification document parser using pdfplumber for text extraction
 and Claude API for structured data extraction.
 """
 import io
-import json
 import logging
 import re
 from dataclasses import dataclass, field
 
-from core.config import settings
+# Re-exported for backward compatibility — these helpers are pure stdlib and
+# live in ai.json_repair so they can be imported without core.config / pydantic.
+from ai.json_repair import (  # noqa: F401
+    _largest_balanced_object,
+    _repair_truncated_json,
+    parse_json_payload,
+)
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +85,7 @@ async def analyze_section_with_claude(section: SpecSectionData) -> dict:
     Use Claude to extract structured data from a spec section.
     Returns: materials, products, standards, requirements, submittal_items
     """
+    from core.config import settings  # heavy import, lazy
     if not settings.anthropic_api_key:
         return {}
 
@@ -127,161 +133,12 @@ SPEC SECTION {section.section_number} — {section.section_title}:
     return {}
 
 
-_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
-
-
-def parse_json_payload(text: str) -> dict | None:
-    """Robustly pull a JSON object out of an LLM response.
-
-    Handles three common shapes Claude (and other LLMs) emit:
-      1. raw JSON, possibly with leading/trailing prose
-      2. JSON inside ```json ... ``` fences
-      3. JSON that's been truncated mid-way (closes brackets we still need)
-
-    Returns the parsed dict, or None if nothing recoverable was found.
-    """
-    if not text:
-        return None
-    candidates: list[str] = []
-
-    # Fenced code blocks first — that's the LLM's most explicit signal.
-    candidates.extend(m.strip() for m in _FENCE_RE.findall(text))
-
-    # Then any balanced top-level JSON object the model emitted directly.
-    if not candidates:
-        candidates.append(text.strip())
-
-    for raw in candidates:
-        if not raw:
-            continue
-        balanced = _largest_balanced_object(raw)
-        if not balanced:
-            continue
-        try:
-            return json.loads(balanced)
-        except json.JSONDecodeError:
-            # Final attempt: close any unfinished brackets.
-            repaired = _repair_truncated_json(balanced)
-            if repaired:
-                try:
-                    return json.loads(repaired)
-                except json.JSONDecodeError:
-                    continue
-    return None
-
-
-def _largest_balanced_object(text: str) -> str | None:
-    """Return the longest substring that begins with '{' and ends at its
-    matching '}'. Skips braces inside string literals."""
-    start = text.find("{")
-    if start < 0:
-        return None
-    depth = 0
-    in_string = False
-    escape = False
-    for i in range(start, len(text)):
-        ch = text[i]
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return None
-
-
-def _repair_truncated_json(text: str) -> str | None:
-    """Best-effort fix when the LLM cuts off mid-output. Strategy:
-
-    1. If we ended inside a string, close it at end of input and balance braces.
-    2. Otherwise, try to walk back from the end of input to a point where the
-       structure is plausibly complete (after a `}` or after a `"` closing a
-       value), and balance from there.
-    3. As a last resort, return the raw text with closing brackets — the
-       caller still json.loads it inside try/except.
-
-    Returns None if there's no opening `{` at all.
-    """
-    if "{" not in text:
-        return None
-
-    final_state = _scan_state(text)
-
-    # Case 1: cut mid-string — close the quote and balance the rest.
-    if final_state["in_string"]:
-        candidate = text + '"' \
-            + "]" * max(0, final_state["depth_square"]) \
-            + "}" * max(0, final_state["depth_curly"])
-        return candidate
-
-    # Case 2: not in a string. Walk back to a structurally clean cut point.
-    candidate = _close_at_clean_point(text, final_state)
-    return candidate
-
-
-def _scan_state(text: str) -> dict:
-    depth_curly = 0
-    depth_square = 0
-    in_string = False
-    escape = False
-    for ch in text:
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == "{":
-            depth_curly += 1
-        elif ch == "}":
-            depth_curly -= 1
-        elif ch == "[":
-            depth_square += 1
-        elif ch == "]":
-            depth_square -= 1
-    return {
-        "depth_curly": depth_curly,
-        "depth_square": depth_square,
-        "in_string": in_string,
-    }
-
-
-def _close_at_clean_point(text: str, final_state: dict) -> str:
-    """Trim trailing content that would leave the JSON in an invalid mid-value
-    state (orphan key+colon, half-typed array, etc.) and close all open brackets.
-    """
-    trimmed = text.rstrip()
-    while trimmed and trimmed[-1] in ",:":
-        trimmed = trimmed[:-1].rstrip()
-        if trimmed.endswith('"'):
-            # Drop the trailing quoted key (everything back to the opening quote)
-            opening = trimmed.rfind('"', 0, -1)
-            if opening >= 0:
-                trimmed = trimmed[:opening].rstrip().rstrip(",")
-    candidate = trimmed
-    candidate += "]" * max(0, final_state["depth_square"])
-    candidate += "}" * max(0, final_state["depth_curly"])
-    return candidate
-
-
 async def generate_embeddings(text: str) -> list[float]:
     """Generate sentence-transformer embeddings for spec section text."""
     try:
         from sentence_transformers import SentenceTransformer
+
+        from core.config import settings
         model = SentenceTransformer(settings.embedding_model)
         embedding = model.encode(text, normalize_embeddings=True)
         return embedding.tolist()
