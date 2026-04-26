@@ -18,7 +18,9 @@ let mainWindow: BrowserWindow | null = null
 let backendProcess: ChildProcess | null = null
 
 const BACKEND_PORT = 8765
-const FRONTEND_DIST = path.join(__dirname, '../../frontend/dist')
+const FRONTEND_DIST = app.isPackaged
+  ? path.join(process.resourcesPath, 'frontend', 'dist')
+  : path.join(__dirname, '../../frontend/dist')
 const IS_DEV = process.env.NODE_ENV === 'development'
 
 // ── Backend lifecycle ──────────────────────────────────────────────────────
