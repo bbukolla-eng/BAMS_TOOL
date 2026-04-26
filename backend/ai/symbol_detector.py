@@ -87,8 +87,12 @@ async def detect_symbols(drawing_id: int, geom: ExtractedGeometry, file_bytes: b
 
 def _rule_based_detection(geom: ExtractedGeometry) -> list[dict]:
     """
-    Detect symbols from DXF block insert names and geometry patterns.
+    Detect symbols from DXF block insert names and geometry patterns,
+    enriched with structured metadata (tag, model, size, capacity) pulled
+    from block ATTRIBs and nearby annotation text.
     """
+    from ai.div23.equipment_metadata import extract_metadata, text_within_radius
+
     symbols = []
 
     # DXF block names often encode equipment type
@@ -103,6 +107,8 @@ def _rule_based_detection(geom: ExtractedGeometry) -> list[dict]:
         "SD": "smoke_damper",
     }
 
+    text_elements = geom.text_elements or []
+
     for block in geom.blocks:
         name_upper = block["name"].upper()
         detected_type = None
@@ -111,18 +117,29 @@ def _rule_based_detection(geom: ExtractedGeometry) -> list[dict]:
                 detected_type = symbol_type
                 break
 
-        if detected_type:
-            symbols.append({
-                "symbol_type": detected_type,
-                "x": block["x"],
-                "y": block["y"],
-                "width": 2.0,
-                "height": 2.0,
-                "confidence": 0.95,
-                "detection_source": "rule",
-                "label": block["name"],
-                "properties": {"block_name": block["name"]},
-            })
+        if not detected_type:
+            continue
+
+        # Look ~6 ft around the symbol for tags/sizes/capacities. Diffusers
+        # are densely packed, so use a tighter radius for them.
+        radius = 3.0 if detected_type in ("diffuser_supply", "diffuser_return", "grille") else 6.0
+        nearby = text_within_radius(block["x"], block["y"], text_elements, radius_ft=radius)
+        metadata = extract_metadata(block, nearby_text=nearby)
+
+        properties: dict = {"block_name": block["name"]}
+        properties.update(metadata)
+
+        symbols.append({
+            "symbol_type": detected_type,
+            "x": block["x"],
+            "y": block["y"],
+            "width": 2.0,
+            "height": 2.0,
+            "confidence": 0.95,
+            "detection_source": "rule",
+            "label": metadata.get("tag") or block["name"],
+            "properties": properties,
+        })
 
     return symbols
 

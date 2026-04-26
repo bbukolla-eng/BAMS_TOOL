@@ -79,6 +79,18 @@ def extract_dxf(file_bytes: bytes) -> list[ExtractedGeometry]:
         elif entity.dxftype() == "INSERT":
             try:
                 pos = entity.dxf.insert
+                # ATTRIB entities attached to the INSERT carry equipment data
+                # (TAG, MARK, MODEL, CFM, TONS, MBH, GPM, CAPACITY, SIZE, etc.)
+                attribs: dict[str, str] = {}
+                if hasattr(entity, "attribs"):
+                    try:
+                        for attrib in entity.attribs:
+                            tag = (getattr(attrib.dxf, "tag", "") or "").strip()
+                            text = (getattr(attrib.dxf, "text", "") or "").strip()
+                            if tag and text:
+                                attribs[tag.upper()] = text
+                    except Exception:
+                        pass
                 geom.blocks.append({
                     "name": entity.dxf.name,
                     "x": pos.x * scale,
@@ -87,6 +99,7 @@ def extract_dxf(file_bytes: bytes) -> list[ExtractedGeometry]:
                     "scale_y": entity.dxf.yscale if entity.dxf.hasattr("yscale") else 1.0,
                     "rotation": entity.dxf.rotation if entity.dxf.hasattr("rotation") else 0,
                     "layer": layer_name,
+                    "attribs": attribs,
                 })
             except Exception:
                 pass

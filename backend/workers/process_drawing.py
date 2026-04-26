@@ -102,6 +102,7 @@ async def _process_drawing_async(task, drawing_id: int, file_path: str, file_typ
                     layer_name=run.get("layer_name"),
                     confidence=run.get("confidence", 1.0),
                     detection_source=run.get("detection_source", "vector"),
+                    fittings=run.get("fittings"),
                 )
                 db.add(mat_run)
 
