@@ -30,9 +30,18 @@ function startBackend(): void {
     ? path.join(process.resourcesPath, 'backend')
     : path.join(__dirname, '../../backend')
 
+  const pythonRelative = process.platform === 'win32'
+    ? path.join('.venv', 'Scripts', 'python.exe')
+    : path.join('.venv', 'bin', 'python')
+
   const pythonBin = app.isPackaged
-    ? path.join(backendDir, '.venv', 'bin', 'python')
-    : 'python'
+    ? path.join(backendDir, pythonRelative)
+    : (process.platform === 'win32' ? 'python' : 'python3')
+
+  if (app.isPackaged && !fs.existsSync(pythonBin)) {
+    console.log('[backend] Python not bundled — skipping backend startup')
+    return
+  }
 
   const env = {
     ...process.env,
@@ -48,6 +57,11 @@ function startBackend(): void {
     ['-m', 'uvicorn', 'api.main:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT)],
     { cwd: backendDir, env, stdio: 'pipe' }
   )
+
+  backendProcess.on('error', (err) => {
+    console.error('[backend] Failed to start:', err.message)
+    backendProcess = null
+  })
 
   backendProcess.stdout?.on('data', (d) => console.log('[backend]', d.toString().trim()))
   backendProcess.stderr?.on('data', (d) => console.error('[backend]', d.toString().trim()))
