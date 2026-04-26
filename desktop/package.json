@@ -1,6 +1,6 @@
 {
   "name": "bams-ai-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BAMS AI — MEP Construction Management Desktop App",
   "main": "dist/main.js",
   "homepage": "./",
@@ -40,6 +40,11 @@
       "assets/**/*"
     ],
     "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "frontend/dist",
+        "filter": ["**/*"]
+      },
       {
         "from": "../backend",
         "to": "backend",
