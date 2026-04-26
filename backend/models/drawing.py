@@ -127,6 +127,9 @@ class MaterialRun(Base):
     layer_name: Mapped[str | None] = mapped_column(String(255))
     confidence: Mapped[float] = mapped_column(Float, default=1.0)
     detection_source: Mapped[str] = mapped_column(String(50), default=DetectionSource.vector)
+    # Fitting counts inferred from connectivity: {"elbow_45": n, "elbow_90": n,
+    # "tee": n, "cross": n, "transition": n}
+    fittings: Mapped[dict | None] = mapped_column(JSON)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     verified_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 

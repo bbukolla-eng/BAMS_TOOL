@@ -160,6 +160,24 @@ async def find_drawing_matches(
     return {"matches": matches}
 
 
+@router.post("/project/{project_id}/auto-link", status_code=status.HTTP_202_ACCEPTED)
+async def auto_link_project(
+    project_id: int,
+    threshold: float = 0.55,
+    division: str = "23",
+    current_user: User = Depends(get_current_user),
+):
+    """Trigger semantic linking of every spec section in this project to the
+    drawn symbols and material runs whose embedding cosine-similarity is above
+    `threshold`. Removes any prior 'auto' links; manual links are preserved."""
+    from ai.spec_drawing_linker import link_spec_to_project_drawings
+
+    counts = await link_spec_to_project_drawings(
+        project_id, threshold=threshold, division_hint=division
+    )
+    return {"status": "complete", **counts}
+
+
 async def _get_spec_or_404(spec_id: int, db: AsyncSession) -> Specification:
     result = await db.execute(select(Specification).where(Specification.id == spec_id))
     spec = result.scalar_one_or_none()

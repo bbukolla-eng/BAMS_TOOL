@@ -3,15 +3,17 @@ Specification document parser using pdfplumber for text extraction
 and Claude API for structured data extraction.
 """
 import io
-import json
 import logging
 import re
 from dataclasses import dataclass, field
 
-import anthropic
-import pdfplumber
-
-from core.config import settings
+# Re-exported for backward compatibility — these helpers are pure stdlib and
+# live in ai.json_repair so they can be imported without core.config / pydantic.
+from ai.json_repair import (  # noqa: F401
+    _largest_balanced_object,
+    _repair_truncated_json,
+    parse_json_payload,
+)
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +34,7 @@ class SpecSectionData:
 
 def extract_spec_sections(file_bytes: bytes) -> list[SpecSectionData]:
     """Extract and chunk a spec PDF into CSI sections."""
+    import pdfplumber  # heavy dep; load lazily so unit tests of pure helpers don't pull it
     sections = []
 
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
@@ -82,9 +85,11 @@ async def analyze_section_with_claude(section: SpecSectionData) -> dict:
     Use Claude to extract structured data from a spec section.
     Returns: materials, products, standards, requirements, submittal_items
     """
+    from core.config import settings  # heavy import, lazy
     if not settings.anthropic_api_key:
         return {}
 
+    import anthropic  # heavy dep; only loaded when we have a key
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
     prompt = f"""Analyze this construction specification section and extract structured data.
@@ -115,10 +120,13 @@ SPEC SECTION {section.section_number} — {section.section_title}:
             messages=[{"role": "user", "content": prompt}],
         )
         text = response.content[0].text.strip()
-        # Extract JSON from response
-        json_match = re.search(r"\{.*\}", text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group(0))
+        parsed = parse_json_payload(text)
+        if parsed is not None:
+            return parsed
+        log.warning(
+            "Spec section %s: Claude returned no parseable JSON",
+            section.section_number,
+        )
     except Exception as e:
         log.warning(f"Claude spec analysis failed for section {section.section_number}: {e}")
 
@@ -129,6 +137,8 @@ async def generate_embeddings(text: str) -> list[float]:
     """Generate sentence-transformer embeddings for spec section text."""
     try:
         from sentence_transformers import SentenceTransformer
+
+        from core.config import settings
         model = SentenceTransformer(settings.embedding_model)
         embedding = model.encode(text, normalize_embeddings=True)
         return embedding.tolist()

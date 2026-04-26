@@ -73,6 +73,29 @@ async def get_proposal(
     return _row(proposal)
 
 
+@router.post("/{proposal_id}/ai-scope")
+async def ai_fill_scope(
+    proposal_id: int,
+    overwrite: bool = False,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Use Claude (with takeoff + spec context) to fill empty Scope of Work,
+    Inclusions, Exclusions, and Clarifications fields. Existing manual text
+    is preserved unless `overwrite=true`."""
+    result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        raise NotFoundError("Proposal")
+    if overwrite:
+        for f in ("scope_of_work", "inclusions", "exclusions", "clarifications"):
+            setattr(proposal, f, None)
+    from modules.proposals.ai_scope import write_proposal_text_into
+    applied = await write_proposal_text_into(proposal, db)
+    await db.flush()
+    return {"applied_fields": list(applied.keys()), "proposal": _row(proposal)}
+
+
 @router.get("/{proposal_id}/export/pdf")
 async def export_proposal_pdf(
     proposal_id: int,

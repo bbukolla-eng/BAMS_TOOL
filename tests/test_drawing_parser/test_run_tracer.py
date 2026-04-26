@@ -1,6 +1,5 @@
 """Tests for the material run tracer that connects line segments into runs."""
 import sys
-import math
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "backend"))
