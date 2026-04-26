@@ -42,10 +42,28 @@ cp .env.example .env
 
 make setup      # Install dependencies, init DB
 make dev        # Start all services
-make seed       # Seed price book and Division 23 data
+make seed       # Seed Division 23 catalog skeleton + labor assemblies
 ```
 
 App: http://localhost:3000 | API docs: http://localhost:8000/docs
+
+### Loading real pricing
+
+`make seed` populates the Division 23 catalog **structure** (≈560 SKUs, CSI
+codes, sizes, units, labor-assembly skeleton) but leaves all costs and labor
+hours zero — flagged `PRICE_PENDING_BLUE_BOOK` / `HOURS_PENDING_HISTORICAL_DATA`.
+Real pricing comes from manufacturer line lists. Ingest them with:
+
+```bash
+make import-prices file=path/to/trane_2025.csv manufacturer=Trane
+make import-prices file=path/to/greenheck.xlsx manufacturer=Greenheck
+make import-prices file=path/to/historical.csv dry=1   # preview, no write
+```
+
+The importer accepts CSV or XLSX, auto-detects column headers across common
+manufacturer formats (Trane, Carrier, Greenheck, Hart & Cooley, Victaulic,
+RSMeans exports), and upserts by manufacturer + model number where present,
+description + CSI + size otherwise.
 
 ## Division 23 Coverage
 

@@ -1,4 +1,4 @@
-.PHONY: setup dev stop seed migrate test lint format first-run
+.PHONY: setup dev stop seed import-prices migrate test lint format first-run
 
 setup:
 	@echo "Setting up BAMS AI..."
@@ -32,6 +32,15 @@ stop:
 seed:
 	cd backend && python ../scripts/seed_users.py
 	cd backend && python ../scripts/seed_div23_data.py
+
+import-prices:
+	@if [ -z "$(file)" ]; then \
+		echo "Usage: make import-prices file=path/to/list.csv [manufacturer=Trane] [dry=1]"; \
+		exit 1; \
+	fi
+	cd backend && python ../scripts/import_price_book.py --file "../$(file)" \
+		$(if $(manufacturer),--manufacturer "$(manufacturer)") \
+		$(if $(dry),--dry-run)
 
 migrate:
 	cd backend && alembic upgrade head
