@@ -15,6 +15,7 @@ import TradesPage from '@/pages/Trades'
 import OverheadPage from '@/pages/Overhead'
 import BiddingPage from '@/pages/Bidding'
 import BidSummaryPage from '@/pages/BidSummary'
+import EstimatePage from '@/pages/Estimate'
 import ProposalPage from '@/pages/Proposal'
 import SubmittalsPage from '@/pages/Submittals'
 import CloseoutPage from '@/pages/Closeout'
@@ -45,8 +46,9 @@ export default function App() {
         <Route path="projects/:id/drawings-ai" element={<Navigate to="../drawings?tab=ai" replace />} />
         <Route path="projects/:id/specs" element={<SpecsPage />} />
         <Route path="projects/:id/takeoff" element={<TakeoffPage />} />
-        <Route path="projects/:id/bidding" element={<BiddingPage />} />
-        <Route path="projects/:id/bid-summary" element={<BidSummaryPage />} />
+        <Route path="projects/:id/estimate" element={<EstimatePage />} />
+        <Route path="projects/:id/bidding" element={<Navigate to="../estimate?tab=line-items" replace />} />
+        <Route path="projects/:id/bid-summary" element={<Navigate to="../estimate?tab=summary" replace />} />
         <Route path="projects/:id/proposal" element={<ProposalPage />} />
         <Route path="projects/:id/submittals" element={<SubmittalsPage />} />
         <Route path="projects/:id/closeout" element={<CloseoutPage />} />

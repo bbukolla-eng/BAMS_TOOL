@@ -22,12 +22,7 @@ function ProjectNav({ projectId }: { projectId: string }) {
     { to: `/projects/${projectId}/drawings`, icon: FileImage, label: 'Drawings' },
     { to: `/projects/${projectId}/specs`, icon: FileText, label: 'Specs' },
     { to: `/projects/${projectId}/takeoff`, icon: Calculator, label: 'Takeoff' },
-    { to: `/projects/${projectId}/equipment`, icon: Wrench, label: 'Equipment' },
-    { to: `/projects/${projectId}/bidding`, icon: Gavel, label: 'Bidding' },
-    { to: `/projects/${projectId}/bid-summary`, icon: BarChart3, label: 'Bid Summary' },
-    { to: `/projects/${projectId}/proposal`, icon: FileSignature, label: 'Proposal' },
-    { to: `/projects/${projectId}/submittals`, icon: Package, label: 'Submittals' },
-    { to: `/projects/${projectId}/closeout`, icon: ClipboardCheck, label: 'Closeout' },
+    { to: `/projects/${projectId}/estimate`, icon: Gavel, label: 'Estimate' },
   ]
   return (
     <div className="mt-4">
