@@ -13,10 +13,10 @@
   "scripts": {
     "start": "electron .",
     "dev": "concurrently \"tsc -w\" \"electron .\"",
-    "build": "tsc && electron-builder",
-    "build:mac": "tsc && electron-builder --mac --publish never",
-    "build:win": "tsc && electron-builder --win --publish never",
-    "build:linux": "tsc && electron-builder --linux --publish never"
+    "build": "tsc && npm --prefix ../frontend run build && electron-builder",
+    "build:mac": "tsc && npm --prefix ../frontend run build && electron-builder --mac --publish never",
+    "build:win": "tsc && npm --prefix ../frontend run build && electron-builder --win --publish never",
+    "build:linux": "tsc && npm --prefix ../frontend run build && electron-builder --linux --publish never"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -51,6 +51,11 @@
           "!**/node_modules/**",
           "!**/.git/**"
         ]
+      },
+      {
+        "from": "../frontend/dist",
+        "to": "frontend/dist",
+        "filter": ["**/*"]
       }
     ],
     "mac": {

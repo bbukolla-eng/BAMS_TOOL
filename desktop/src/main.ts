@@ -18,7 +18,11 @@ let mainWindow: BrowserWindow | null = null
 let backendProcess: ChildProcess | null = null
 
 const BACKEND_PORT = 8765
-const FRONTEND_DIST = path.join(__dirname, '../../frontend/dist')
+// In dev, dist lives at desktop/../frontend/dist relative to compiled main.js (desktop/dist/main.js).
+// When packaged, electron-builder copies it to resources/frontend/dist (see extraResources in package.json).
+const FRONTEND_DIST = app.isPackaged
+  ? path.join(process.resourcesPath, 'frontend', 'dist')
+  : path.join(__dirname, '../../frontend/dist')
 const IS_DEV = process.env.NODE_ENV === 'development'
 
 // ── Backend lifecycle ──────────────────────────────────────────────────────
