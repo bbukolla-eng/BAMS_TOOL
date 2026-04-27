@@ -20,7 +20,6 @@ function ProjectNav({ projectId }: { projectId: string }) {
   const items = [
     { to: `/projects/${projectId}`, icon: FolderOpen, label: 'Overview', exact: true },
     { to: `/projects/${projectId}/drawings`, icon: FileImage, label: 'Drawings' },
-    { to: `/projects/${projectId}/drawings-ai`, icon: Brain, label: 'Drawings AI' },
     { to: `/projects/${projectId}/specs`, icon: FileText, label: 'Specs' },
     { to: `/projects/${projectId}/takeoff`, icon: Calculator, label: 'Takeoff' },
     { to: `/projects/${projectId}/equipment`, icon: Wrench, label: 'Equipment' },

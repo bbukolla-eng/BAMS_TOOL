@@ -42,7 +42,7 @@ export default function App() {
         <Route path="projects/:id" element={<ProjectDetail />} />
         <Route path="projects/:id/drawings" element={<DrawingsPage />} />
         <Route path="projects/:id/drawings/:drawingId" element={<DrawingViewer />} />
-        <Route path="projects/:id/drawings-ai" element={<DrawingsAIPage />} />
+        <Route path="projects/:id/drawings-ai" element={<Navigate to="../drawings?tab=ai" replace />} />
         <Route path="projects/:id/specs" element={<SpecsPage />} />
         <Route path="projects/:id/takeoff" element={<TakeoffPage />} />
         <Route path="projects/:id/bidding" element={<BiddingPage />} />
