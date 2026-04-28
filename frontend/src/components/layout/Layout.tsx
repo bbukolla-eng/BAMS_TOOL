@@ -3,10 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import {
-  LayoutDashboard, FolderOpen, FileImage, Brain, FileText,
-  Calculator, BookOpen, Users, DollarSign, Gavel, BarChart3,
-  FileSignature, Package, ClipboardCheck, Wrench, LogOut,
-  ChevronDown, Building2, Settings,
+  FolderOpen, FileImage, FileText, Calculator, BookOpen, Gavel,
+  LogOut, ChevronDown, Building2, Settings,
 } from 'lucide-react'
 import { useState } from 'react'
 
