@@ -13,6 +13,7 @@ import TakeoffPage from '@/pages/Takeoff'
 import PriceBookPage from '@/pages/PriceBook'
 import TradesPage from '@/pages/Trades'
 import OverheadPage from '@/pages/Overhead'
+import SettingsPage from '@/pages/Settings'
 import BiddingPage from '@/pages/Bidding'
 import BidSummaryPage from '@/pages/BidSummary'
 import EstimatePage from '@/pages/Estimate'
@@ -38,7 +39,8 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<Navigate to="/projects" replace />} />
+        <Route path="dashboard" element={<Navigate to="/projects" replace />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:id" element={<ProjectDetail />} />
         <Route path="projects/:id/drawings" element={<DrawingsPage />} />
@@ -54,8 +56,9 @@ export default function App() {
         <Route path="projects/:id/closeout" element={<CloseoutPage />} />
         <Route path="projects/:id/equipment" element={<EquipmentPage />} />
         <Route path="price-book" element={<PriceBookPage />} />
-        <Route path="trades" element={<TradesPage />} />
-        <Route path="overhead" element={<OverheadPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="trades" element={<Navigate to="/settings?tab=trades" replace />} />
+        <Route path="overhead" element={<Navigate to="/settings?tab=overhead" replace />} />
       </Route>
     </Routes>
   )

@@ -4,16 +4,14 @@ import {
   LayoutDashboard, FolderOpen, FileImage, Brain, FileText,
   Calculator, BookOpen, Users, DollarSign, Gavel, BarChart3,
   FileSignature, Package, ClipboardCheck, Wrench, LogOut,
-  ChevronDown, Building2
+  ChevronDown, Building2, Settings,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const globalNav = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects', icon: FolderOpen, label: 'Projects' },
   { to: '/price-book', icon: BookOpen, label: 'Price Book' },
-  { to: '/trades', icon: Users, label: 'Trades' },
-  { to: '/overhead', icon: DollarSign, label: 'Overhead' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 function ProjectNav({ projectId }: { projectId: string }) {
